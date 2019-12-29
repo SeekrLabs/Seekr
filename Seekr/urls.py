@@ -1,7 +1,12 @@
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework import routers
+from postings import views
+
+router = routers.DefaultRouter()
 
 urlpatterns = [
-    path('profiles/', include('profiles.urls')),
+    path('', include(router.urls)),
     path('admin/', admin.site.urls),
+    path('api-auth/', include('rest_framework.urls'))
 ]
