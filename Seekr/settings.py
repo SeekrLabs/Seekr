@@ -25,14 +25,12 @@ SECRET_KEY = '5bfwf=oys$=(ccjdz+5k!dbbh(n4ae%ry39=1sco4qdtr)ts95'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'profiles.apps.ProfilesConfig',
-    'postings.apps.PostingsConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'profiles.apps.ProfilesConfig',
+    'postings.apps.PostingsConfig',
 ]
 
 MIDDLEWARE = [
