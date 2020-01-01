@@ -1,0 +1,15 @@
+asgiref==3.2.3
+beautifulsoup4==4.8.2
+certifi==2019.11.28
+chardet==3.0.4
+Django==3.0.1
+django-common-helpers==0.9.2
+django-compat==1.0.15
+djangorestframework==3.11.0
+idna==2.8
+pytz==2019.3
+requests==2.22.0
+six==1.13.0
+soupsieve==1.9.5
+sqlparse==0.3.0
+urllib3==1.25.7
