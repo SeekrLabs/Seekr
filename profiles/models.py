@@ -16,6 +16,7 @@ class Experience(models.Model):
 class Education(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     institution = models.CharField(max_length=128, default='')
+    major = models.CharField(max_length=64, default='')
     description = models.CharField(max_length=128, default='')
     start_date = models.DateField()
     end_date = models.DateField()

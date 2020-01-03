@@ -11,3 +11,4 @@ select venv python interpreter if using vscode
 ## Running server
 ```
 python manage.py runserver
+```
