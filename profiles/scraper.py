@@ -24,6 +24,7 @@ class LinkedInScraper(SeleniumScraper):
         'USERNAME': '//*[@id="username"]',
         'PASSWORD': '//*[@id="password"]',
         'SEARCH_PEOPLE': '//*[@data-control-name="search_srp_result"]',
+        'SEARCH_RESULT_ITEM': '//li[@class="search-result search-result__occluded-item ember-view"]',
         'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
         'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
         'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
@@ -43,8 +44,11 @@ class LinkedInScraper(SeleniumScraper):
         self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
         self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
     
-    def people_search(self, company, role):
-        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + '%20'.join(role.split()) + '%20' + company
+    """
+    :param query: String that queries the people tab of linkedin
+    """
+    def people_search(self, query):
+        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + '%20'.join(query.split())
         self.visit(url)
         self.scroll_to_bottom(2500)
     
@@ -53,14 +57,12 @@ class LinkedInScraper(SeleniumScraper):
         return [LinkedInProfile(el.get_attribute('href'), None, None) for el in els]
 
     def collect_basic_profile(self, company, role, num_profiles, exclude_urls):
-        current_profiles = 0
         self.people_search(company, role)
         profiles = []
 
-        while current_profiles < num_profiles:
+        while len(profiles) < num_profiles:
             new_profiles = self.parse_search_people_result()
             profiles += [p for p in new_profiles if p.profile_url not in exlucde_urls]
-            current_profiles = len(profiles)
 
         return profiles
 

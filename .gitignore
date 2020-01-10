@@ -67,8 +67,10 @@ local_settings.py
 # Custom
 db.sqlite3
 venv/
+utils/glove.6B.50d.txt
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
