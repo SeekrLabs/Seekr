@@ -16,107 +16,6 @@ WINDOW_SIZE = 800
 LINKEDIN_EMAIL = os.environ['LINKEDIN_EMAIL']
 LINKEDIN_PASSWORD = os.environ['LINKEDIN_PASSWORD']
 
-class LinkedInScraper(SeleniumScraper):
-    urls = {'LINKEDIN_LOGIN_URL': 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin',
-                    'BASE_LINKEDIN': 'https://www.linkedin.com/',
-                    'LINKEDIN_PEOPLE_SEARCH': 'https://www.linkedin.com/search/results/people/?keywords='}
-    xpaths = {
-        'USERNAME': '//*[@id="username"]',
-        'PASSWORD': '//*[@id="password"]',
-        'SEARCH_PEOPLE': '//*[@data-control-name="search_srp_result"]',
-        'SEARCH_RESULT_ITEM': '//li[@class="search-result search-result__occluded-item ember-view"]',
-        'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
-        'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
-        'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
-        'TITLE': './/h3[@class="t-16 t-black t-bold"]',
-        'COMPANY': './/p[@class="pv-entity__secondary-title t-14 t-black t-normal"]',
-        'DATE_RANGE': './/h4[@class="pv-entity__date-range t-14 t-black--light t-normal"]',
-        'JOB_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-black t-normal inline-show-more-text inline-show-more-text--is-collapsed ember-view"]',
-        'SCHOOL': './/h3[@class="pv-entity__school-name t-16 t-black t-bold"]',
-        'MAJOR': './/p[@class="pv-entity__secondary-title pv-entity__fos t-14 t-black t-normal"]',
-        'SCHOOL_DATE_RANGE': './/p[@class="pv-entity__dates t-14 t-black--light t-normal"]',
-        'SHOW_MORE': './/button[@class="pv-profile-section__card-action-bar pv-skills-section__additional-skills artdeco-container-card-action-bar artdeco-button artdeco-button--tertiary artdeco-button--3 artdeco-button--fluid"]'
-    }
-
-    def login(self):
-        self.visit(self.urls['LINKEDIN_LOGIN_URL'])
-        time.sleep(2)
-        self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
-        self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
-    
-    """
-    :param query: String that queries the people tab of linkedin
-    """
-    def people_search(self, query):
-        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + '%20'.join(query.split())
-        self.visit(url)
-        self.scroll_to_bottom(2500)
-    
-    def parse_search_people_result(self):
-        els = self.get_multiple_by_xpath_or_none('SEARCH_PEOPLE', wait=True)
-        return [LinkedInProfile(el.get_attribute('href'), None, None) for el in els]
-
-    def collect_basic_profile(self, company, role, num_profiles, exclude_urls):
-        self.people_search(company, role)
-        profiles = []
-
-        while len(profiles) < num_profiles:
-            new_profiles = self.parse_search_people_result()
-            profiles += [p for p in new_profiles if p.profile_url not in exlucde_urls]
-
-        return profiles
-
-    def get_profiles(self, company, role, num_profiles=20, exlude_urls=[]):
-        basic_profiles = self.collect_basic_profile(company, role, num_profiles, exclude_urls)
-
-
-    def get_profile_by_url(self, profile_url):
-        self.visit(profile_url)
-        name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
-        location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
-
-        self.scroll_to_bottom(5000)
-
-        experiences = self.parse_profile_experiences()
-        education = self.parse_profile_education()
-        print(experiences)
-        print(education)
-
-    def parse_profile_experiences(self):
-        experiences = []
-        exps = self.get_multiple_by_xpath_or_none('EXPERIENCES')
-        if not exps:
-            return None
-        
-        for exp in exps:
-            temp = {}
-            temp['dates'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'DATE_RANGE')
-            temp['title'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'TITLE')
-            temp['company'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'COMPANY')
-            temp['description'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'JOB_DESCRIPTION')
-            experiences.append(temp)
-
-        return experiences
-
-
-    def parse_profile_education(self):
-        institution = self.get_by_xpath_text_or_none('SCHOOL', wait=False)
-        major = self.get_by_xpath_text_or_none('MAJOR', wait=False)
-        school_date_range = self.get_by_xpath_text_or_none('SCHOOL_DATE_RANGE', wait=False)
-        
-        if not institution or not major or not school_date_range:
-            return None
-
-        return {
-            "institution": institution,
-            "major": major,
-            "school_date_range": school_date_range
-        }
-
 class SeleniumScraper:
     xpaths = {}
     def __init__(self, headless=False):
@@ -252,3 +151,105 @@ class SeleniumScraper:
             return None
         else:
             return [element.text for element in elements]
+
+
+class LinkedInScraper(SeleniumScraper):
+    urls = {'LINKEDIN_LOGIN_URL': 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin',
+                    'BASE_LINKEDIN': 'https://www.linkedin.com/',
+                    'LINKEDIN_PEOPLE_SEARCH': 'https://www.linkedin.com/search/results/people/?keywords='}
+    xpaths = {
+        'USERNAME': '//*[@id="username"]',
+        'PASSWORD': '//*[@id="password"]',
+        'SEARCH_PEOPLE': '//*[@data-control-name="search_srp_result"]',
+        'SEARCH_RESULT_ITEM': '//li[@class="search-result search-result__occluded-item ember-view"]',
+        'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
+        'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
+        'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
+        'TITLE': './/h3[@class="t-16 t-black t-bold"]',
+        'COMPANY': './/p[@class="pv-entity__secondary-title t-14 t-black t-normal"]',
+        'DATE_RANGE': './/h4[@class="pv-entity__date-range t-14 t-black--light t-normal"]',
+        'JOB_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-black t-normal inline-show-more-text inline-show-more-text--is-collapsed ember-view"]',
+        'SCHOOL': './/h3[@class="pv-entity__school-name t-16 t-black t-bold"]',
+        'MAJOR': './/p[@class="pv-entity__secondary-title pv-entity__fos t-14 t-black t-normal"]',
+        'SCHOOL_DATE_RANGE': './/p[@class="pv-entity__dates t-14 t-black--light t-normal"]',
+        'SHOW_MORE': './/button[@class="pv-profile-section__card-action-bar pv-skills-section__additional-skills artdeco-container-card-action-bar artdeco-button artdeco-button--tertiary artdeco-button--3 artdeco-button--fluid"]'
+    }
+
+    def login(self):
+        self.visit(self.urls['LINKEDIN_LOGIN_URL'])
+        time.sleep(2)
+        self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
+        self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
+    
+    """
+    :param query: String that queries the people tab of linkedin
+    """
+    def people_search(self, query):
+        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + '%20'.join(query.split())
+        self.visit(url)
+        self.scroll_to_bottom(2500)
+    
+    def parse_search_people_result(self):
+        els = self.get_multiple_by_xpath_or_none('SEARCH_PEOPLE', wait=True)
+        return [LinkedInProfile(el.get_attribute('href'), None, None) for el in els]
+
+    def collect_basic_profile(self, company, role, num_profiles, exclude_urls):
+        self.people_search(company, role)
+        profiles = []
+
+        while len(profiles) < num_profiles:
+            new_profiles = self.parse_search_people_result()
+            profiles += [p for p in new_profiles if p.profile_url not in exlucde_urls]
+
+        return profiles
+
+    def get_profiles(self, company, role, num_profiles=20, exlude_urls=[]):
+        basic_profiles = self.collect_basic_profile(company, role, num_profiles, exclude_urls)
+
+
+    def get_profile_by_url(self, profile_url):
+        self.visit(profile_url)
+        name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
+        location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
+
+        self.scroll_to_bottom(5000)
+
+        experiences = self.parse_profile_experiences()
+        education = self.parse_profile_education()
+        print(experiences)
+        print(education)
+
+    def parse_profile_experiences(self):
+        experiences = []
+        exps = self.get_multiple_by_xpath_or_none('EXPERIENCES')
+        if not exps:
+            return None
+        
+        for exp in exps:
+            temp = {}
+            temp['dates'] = self.element_get_text_by_xpath_or_none(
+                    exp, 'DATE_RANGE')
+            temp['title'] = self.element_get_text_by_xpath_or_none(
+                    exp, 'TITLE')
+            temp['company'] = self.element_get_text_by_xpath_or_none(
+                    exp, 'COMPANY')
+            temp['description'] = self.element_get_text_by_xpath_or_none(
+                    exp, 'JOB_DESCRIPTION')
+            experiences.append(temp)
+
+        return experiences
+
+
+    def parse_profile_education(self):
+        institution = self.get_by_xpath_text_or_none('SCHOOL', wait=False)
+        major = self.get_by_xpath_text_or_none('MAJOR', wait=False)
+        school_date_range = self.get_by_xpath_text_or_none('SCHOOL_DATE_RANGE', wait=False)
+        
+        if not institution or not major or not school_date_range:
+            return None
+
+        return {
+            "institution": institution,
+            "major": major,
+            "school_date_range": school_date_range
+        }
