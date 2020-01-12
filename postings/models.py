@@ -11,3 +11,26 @@ class Posting(models.Model):
     url = models.URLField(default='')
     vector = models.CharField(max_length=2048, default='')
     description = models.CharField(max_length=256, default='')
+    image_url = models.URLField(blank=True))
+
+    def get_image_url(self):
+        if self.image_url is None:
+            image = self.generate_image()
+            self.image_url = self.save_image(image)
+        return self.image_url
+
+    def generate_image(self):
+        # title = self.tile to access parameters
+        pass
+
+    def save_image(self, image):
+        """ 
+        Save to Amazon S3
+  
+        Parameters: 
+            image (TBD):
+          
+        Returns:
+            image_url (string): a publically access url string
+        """
+        pass
