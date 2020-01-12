@@ -1,6 +1,6 @@
 from django.test import TestCase
 from .models import Profile
-#from .scraper import LinkedInScraper
+from .scraper import LinkedInScraper
 import time
 from profiles.models import Profile, Education, Experience
 from datetime import date
@@ -9,11 +9,36 @@ class ProfileTestCase(TestCase):
     def setUp(self):
         self.p = Profile()
 
-    # def test_false(self):
-    #     linkedin = LinkedInScraper()
-    #     linkedin.login()
-    #     print(linkedin.get_profile_by_url("https://www.linkedin.com/in/waltonwang"))
-    #     linkedin.quit()
+    def test_false(self):
+        linkedin = LinkedInScraper()
+        linkedin.login()
+        print(linkedin.get_profile_by_url("https://www.linkedin.com/in/waltonwang"))
+        linkedin.quit()
+
+    def test_gpa_extractor(self):
+        grades = [
+            "4",
+            "0.01",
+            "3.99",
+            "2.8fewfwe",
+            "fwe4.00afwefe",
+            "Fourth Year",
+            "3.7/4.0",
+        ]
+
+        expected = [
+            None,
+            0.01,
+            3.99,
+            2.8,
+            4.00,
+            None,
+            3.7
+        ]
+        results = [LinkedInScraper.extract_gpa(g) for g in grades]
+
+        for i in range(len(results)):
+            self.assertTrue(results[i] == expected[i])
 
     def test_education_to_vector(self):
         e = Education(

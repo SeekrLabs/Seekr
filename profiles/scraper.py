@@ -9,8 +9,9 @@ import time
 import os
 from datetime import date, datetime
 from .models import Profile, Experience, Education
+import re
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 POLL_FREQUENCY = 0.1
 WAIT_TIMEOUT = 20
@@ -220,7 +221,7 @@ class LinkedInScraper(SeleniumScraper):
 
         experiences = self.parse_profile_experiences()
         education = self.parse_profile_education()
-
+        gpa = LinkedInScraper.extract_gpa(education['grade'])
         is_education_current = False
         if education["end_date"] >= date.today():
             is_education_current = True
@@ -232,8 +233,8 @@ class LinkedInScraper(SeleniumScraper):
         experiences_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
         experiences_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
 
-        experience_start_date = datetime.strptime(experiences_start_date_month + " 01 " + experiences_start_date_year, '%b %d %Y')
-        experience_end_date = datetime.strptime(experiences_end_date_month + " 01 " + experiences_end_date_year, '%b %d %Y')
+        experience_start_date = datetime.strptime(experiences_start_date_month + " 01 " + experiences_start_date_year, '%b %d %Y').date()
+        experience_end_date = datetime.strptime(experiences_end_date_month + " 01 " + experiences_end_date_year, '%b %d %Y').date()
 
         is_experience_current = False
         if experience_end_date >= date.today():
@@ -242,19 +243,33 @@ class LinkedInScraper(SeleniumScraper):
         # constructing the Profile object first by setting the name and location
         profile = Profile(name = name, location = location)
         profile.save()
-        profile.experience_set.create(company = experiences[0]["company"], description = experiences[0]["description"], 
-            start_date = experience_start_date, end_date = experience_end_date, is_current = is_experience_current)
+        profile.experience_set.create(
+                company=experiences[0]["company"],
+                description=experiences[0]["description"], 
+                start_date=experience_start_date,
+                end_date=experience_end_date,
+                is_current=is_experience_current
+        )
 
-        profile.education_set.create(school_name = education['institution'], degree = education['degree'], 
-            field_of_study = education['field_of_study'], description = education['description'], gpa = education["grade"], 
-            start_date = education["start_date"], end_date = education["end_date"], is_current = is_education_current)
-        # saving the entire profile into DB 
-        profile.save() 
+        profile.education_set.create(
+                school_name=education['institution'], 
+                degree=education['degree'], 
+                field_of_study = education['field_of_study'], 
+                description=education['description'],
+                gpa=gpa, 
+                start_date=education["start_date"],
+                end_date=education["end_date"],
+                is_current=is_education_current
+        )
+        
+        # saving the entire profile into DB
+        profile.save()
+        return profile
 
-        print(profile.experience_set.get(id=1).start_date)
-        print(profile.experience_set.get(id=1).end_date)
-        print(experiences)
-        print(education)
+        # print(profile.experience_set.get(id=1).start_date)
+        # print(profile.experience_set.get(id=1).end_date)
+        # print(experiences)
+        # print(education)
 
     def parse_profile_experiences(self):
         experiences = []
@@ -275,6 +290,14 @@ class LinkedInScraper(SeleniumScraper):
             experiences.append(temp)
 
         return experiences
+    
+    def extract_gpa(grade):
+        gpas = re.findall('[0-4]\.[0-9]?[0-9]?', grade)
+        if not gpas:
+            return None
+
+        gpas = map(lambda x: float(x), gpas)
+        return min(gpas)
 
     def parse_profile_education(self):
         institution = self.get_by_xpath_text_or_none('SCHOOL', wait=False)
@@ -286,6 +309,7 @@ class LinkedInScraper(SeleniumScraper):
         
         if not institution or not field_of_study or not school_date_range:
             return None  
+
         degree = degree.split('\n')[1]
         if "bachelor" in degree.lower():
             degree = "Bachelor"
@@ -298,7 +322,7 @@ class LinkedInScraper(SeleniumScraper):
 
         start_date = date(int((school_date_range.split('\n')[1]).split(' ')[0]),9, 1)
         end_date = date(int((school_date_range.split('\n')[1]).split(' ')[2]), 5, 1)
-
+        
         return {
             "institution": institution,
             "field_of_study": field_of_study.split('\n')[1],

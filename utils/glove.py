@@ -24,8 +24,6 @@ class Glove:
         
         res = []
         for w in words:
-            res += self.model.get(word, [0] * WORD_EMBEDDING_LEN)
+            res += self.model.get(w, [0] * WORD_EMBEDDING_LEN)
         
         return res
-
-    

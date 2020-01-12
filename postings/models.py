@@ -11,7 +11,7 @@ class Posting(models.Model):
     url = models.URLField(default='')
     vector = models.CharField(max_length=2048, default='')
     description = models.CharField(max_length=256, default='')
-    image_url = models.URLField(blank=True))
+    image_url = models.URLField(blank=True)
 
     def get_image_url(self):
         if self.image_url is None:

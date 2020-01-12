@@ -10,7 +10,7 @@ if any(command in sys.argv for command in ['runserver', 'shell', 'test']):
 
 class Profile(models.Model):
     name = models.CharField(max_length=128, default='', blank=True)
-    location = models.DateField(max_length=64, blank=True)
+    location = models.CharField(max_length=64, blank=True)
 
     def to_vector(self, profile_simulation_date):
         """ 
@@ -46,7 +46,6 @@ class Profile(models.Model):
         else:
             return self.education_set[0].to_vector(profile_simulation_date)
 
-
 class Experience(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     company = models.CharField(max_length=128, default='')
@@ -62,7 +61,7 @@ class Education(models.Model):
     degree = models.CharField(max_length=64, default='')
     field_of_study = models.CharField(max_length=64, default='')
     description = models.CharField(max_length=128, default='', blank=True)
-    gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0, blank=True)
+    gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0, blank=True, null=True)
 
     start_date = models.DateField()
     end_date = models.DateField(blank=True)
