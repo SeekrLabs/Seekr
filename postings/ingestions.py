@@ -16,7 +16,6 @@ def repeat():
         
 
 def time_until_end_of_day(dt=None):
-    # type: (datetime.datetime) -> datetime.timedelta
     """
     Get timedelta until end of day on the datetime passed, or current time.
     """
