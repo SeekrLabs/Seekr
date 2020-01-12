@@ -1,7 +1,7 @@
 from django.db import models
 import numpy as np
 import sys
-from .experiences import ExperienceRepresentation
+from .representations import ExperienceRepresentation, SkillRepresentation
 from config import glove
 from constants import *
 
@@ -30,6 +30,15 @@ class Profile(models.Model):
         for e in self.experience_set.all():
             exp_repr.add_experience(e)
         experience_vector = exp_repr.to_vector()
+
+        skills_repr = SkillRepresentation(profile_simulation_date)
+        for e in self.experience_set.all():
+            skills_repr.add_text(e.description, e.end_date)
+        for edu in self.education_set.all():
+            skills_repr.add_text(edu.description, edu.end_date)
+        skills_vector = skills_repr.to_vector()
+
+        return education_vector + experience_vector + skills_vector
         
     def education_to_vector(self, profile_simulation_date):
         if len(self.education_set) == 0:
@@ -58,8 +67,7 @@ class Education(models.Model):
     start_date = models.DateField()
     end_date = models.DateField(blank=True)
     is_current = models.BooleanField()
-
-
+    
     def to_vector(self, profile_simulation_date):
         """ 
         Returns a numerical representation of education

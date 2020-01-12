@@ -1,7 +1,22 @@
 #from .models import Experience
 from datetime import date, timedelta
 from config import glove
+from .data.skills_one_hot import skills_one_hot
 
+class SkillRepresentation:
+    def __init__(self, profile_simulation_date):
+        self.profile_simulation_date = profile_simulation_date
+        self.skills = [0] * len(skills_one_hot)
+
+    def add_text(self, text, end_date):
+        if end_date > self.profile_simulation_date:
+            for w in text.lower().split():
+                if w in skills_one_hot:
+                    self.skills[skills_one_hot[w]] = 1
+
+    def to_vector(self):
+        return self.skills
+        
 class ExperienceRepresentation:
     def __init__(self, prev_years_lookup):
         # company2vec, title2vec, tenure length within that year
