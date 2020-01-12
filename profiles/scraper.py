@@ -7,6 +7,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 import logging
 import time
 import os
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +171,9 @@ class LinkedInScraper(SeleniumScraper):
         'DATE_RANGE': './/h4[@class="pv-entity__date-range t-14 t-black--light t-normal"]',
         'JOB_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-black t-normal inline-show-more-text inline-show-more-text--is-collapsed ember-view"]',
         'SCHOOL': './/h3[@class="pv-entity__school-name t-16 t-black t-bold"]',
-        'MAJOR': './/p[@class="pv-entity__secondary-title pv-entity__fos t-14 t-black t-normal"]',
+        'DEGREE': './/p[@class="pv-entity__secondary-title pv-entity__degree-name t-14 t-black t-normal"]',
+        'FIELD_OF_STUDY': './/p[@class="pv-entity__secondary-title pv-entity__fos t-14 t-black t-normal"]',
+        'GRADE': './/p[@class="pv-entity__secondary-title pv-entity__grade t-14 t-black t-normal"]',
         'SCHOOL_DATE_RANGE': './/p[@class="pv-entity__dates t-14 t-black--light t-normal"]',
         'SHOW_MORE': './/button[@class="pv-profile-section__card-action-bar pv-skills-section__additional-skills artdeco-container-card-action-bar artdeco-button artdeco-button--tertiary artdeco-button--3 artdeco-button--fluid"]'
     }
@@ -218,6 +221,7 @@ class LinkedInScraper(SeleniumScraper):
         education = self.parse_profile_education()
         print(experiences)
         print(education)
+        
 
     def parse_profile_experiences(self):
         experiences = []
@@ -242,14 +246,31 @@ class LinkedInScraper(SeleniumScraper):
 
     def parse_profile_education(self):
         institution = self.get_by_xpath_text_or_none('SCHOOL', wait=False)
-        major = self.get_by_xpath_text_or_none('MAJOR', wait=False)
+        degree = self.get_by_xpath_text_or_none('DEGREE', wait=False)
+        field_of_study = self.get_by_xpath_text_or_none('FIELD_OF_STUDY', wait=False)
+        grade = self.get_by_xpath_text_or_none('GRADE', wait=False)
         school_date_range = self.get_by_xpath_text_or_none('SCHOOL_DATE_RANGE', wait=False)
         
-        if not institution or not major or not school_date_range:
-            return None
+        if not institution or not field_of_study or not school_date_range:
+            return None  
+        degree = degree.split('\n')[1]
+        if "bachelor" in degree.lower():
+            degree = "Bachelor"
+        elif "master" in degree.lower():
+            degree = "Master"
+        elif "pdh" in degree.lower():
+            degree = "PhD"
+        else:
+            degree = "Other"
+
+        start_date = date(int((school_date_range.split('\n')[1]).split(' ')[0]),9, 1)
+        end_date = date(int((school_date_range.split('\n')[1]).split(' ')[2]), 5, 1)
 
         return {
             "institution": institution,
-            "major": major,
-            "school_date_range": school_date_range
+            "field_of_study": field_of_study.split('\n')[1],
+            "degree": degree,
+            "grade": grade.split('\n')[1],
+            "start_date": start_date,
+            "end_date": end_date
         }
