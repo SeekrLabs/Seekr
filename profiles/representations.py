@@ -2,6 +2,7 @@
 from datetime import date, timedelta
 from config import glove
 from .data.skills_one_hot import skills_one_hot
+from constants import *
 
 class SkillRepresentation:
     def __init__(self, profile_simulation_date):
@@ -30,7 +31,10 @@ class ExperienceRepresentation:
     def to_vector(self):
         res = []
         for i in range(self.prev_years_lookup):
-            res += self.exp_map[-i]
+            if not self.exp_map[-i]:
+                res += [0] * EXPERIENCE_YEAR_VECTOR_LEN
+            else:
+                res += self.exp_map[-i]
         return res
 
     def add_experience(self, exp, profile_simulation_date):
@@ -39,7 +43,7 @@ class ExperienceRepresentation:
         lower_date_bound = date(latest_year, 1, 1)
 
         if exp.end_date >= lower_date_bound:
-            exp_title_vector = glove.get_string_embedding(exp.title, 4)
+            exp_title_vector = glove.get_string_embedding(exp.title, NUM_EXPERIENCE_TITLE_WORDS)
             delta_years_at_start = exp.start_date.year - profile_simulation_date.year
             delta_years_at_end = exp.end_date.year - profile_simulation_date.year
 
@@ -63,7 +67,7 @@ class ExperienceRepresentation:
     
     def update_year(self, start_month, end_month, delta_years, exp_vector):
         month_tenured = end_month - start_month + 1
-        if self.should_priortize_exp(delta_years, month_tenured):
+        if self.should_set_experience(delta_years, month_tenured):
             self.set_experience(delta_years, [month_tenured] + exp_vector)
 
     def should_set_experience(self, delta_years, exp_score):

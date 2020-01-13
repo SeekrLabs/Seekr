@@ -20,10 +20,11 @@ class Glove:
         
         # Pad if less than num_words
         padding = num_words - len(words)
-        words = words + [''] * (padding * WORD_EMBEDDING_LEN)
+        words = words + [''] * padding
         
         res = []
         for w in words:
             res += self.model.get(w, [0] * WORD_EMBEDDING_LEN)
         
+        # print("get_string_embedding", len(res), s, padding, words)
         return res

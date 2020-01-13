@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'django_extensions',
     'profiles.apps.ProfilesConfig',
     'postings.apps.PostingsConfig',
 ]
@@ -124,3 +125,5 @@ STATIC_URL = '/static/'
 
 NOSE_ARGS = ['--nocapture',
              '--nologcapture',]
+
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"

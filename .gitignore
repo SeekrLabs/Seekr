@@ -68,6 +68,7 @@ local_settings.py
 db.sqlite3
 venv/
 utils/glove.6B.50d.txt
+.ipynb_checkpoints/
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*

@@ -4,6 +4,7 @@ import sys
 from .representations import ExperienceRepresentation, SkillRepresentation
 from config import glove
 from constants import *
+from .schools import School
 
 if any(command in sys.argv for command in ['runserver', 'shell', 'test']):
     from .schools import School
@@ -26,9 +27,9 @@ class Profile(models.Model):
         """
         education_vector = self.education_to_vector(profile_simulation_date)
 
-        exp_repr = ExperienceRepresentation(profile_simulation_date.year)
+        exp_repr = ExperienceRepresentation(PREV_YEARS_LOOKUP)
         for e in self.experience_set.all():
-            exp_repr.add_experience(e)
+            exp_repr.add_experience(e, profile_simulation_date)
         experience_vector = exp_repr.to_vector()
 
         skills_repr = SkillRepresentation(profile_simulation_date)
@@ -41,10 +42,10 @@ class Profile(models.Model):
         return education_vector + experience_vector + skills_vector
         
     def education_to_vector(self, profile_simulation_date):
-        if len(self.education_set) == 0:
+        if len(self.education_set.all()) == 0:
             return [0] * EDUCATION_VECTOR_LEN
         else:
-            return self.education_set[0].to_vector(profile_simulation_date)
+            return self.education_set.all()[0].to_vector(profile_simulation_date)
 
 class Experience(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
@@ -78,11 +79,13 @@ class Education(models.Model):
           
         Returns:
             List (int): representing the education
+                        [school_vec, gpa, years_to_complete_degree, years_since_graduation,
+                         field_of_study (3 * word_embedding)]
         """
         school_vec = School(self.school_name).to_vector()
-        gpa = [self.gpa]
+        gpa = [self.gpa] if self.gpa else [0]
         years_to_complete_degree = [round((self.end_date - self.start_date).days / 365)]
-        years_since_graduation = [round((profile_simulation_date - self.end_date).days / 365)]
+        years_since_graduation = [0] if self.is_current else [round((profile_simulation_date - self.end_date).days / 365)]
         field_of_study = glove.get_string_embedding(self.field_of_study, 3)
 
         return school_vec + gpa + years_to_complete_degree + years_since_graduation + field_of_study
