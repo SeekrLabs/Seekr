@@ -24,7 +24,7 @@ def time_until_end_of_day(dt=None):
     tomorrow = dt + datetime.timedelta(days=1)
     return datetime.datetime.combine(tomorrow, datetime.time.min) - dt
 
-class IndeedIngestion():
+class IndeedIngestion:
     canada_locations = ['toronto']
     titles = ['engineer']
     BASE_URL_CA = 'https://www.indeed.ca/jobs?&sort=date&limit=50'

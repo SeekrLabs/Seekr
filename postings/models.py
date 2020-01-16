@@ -34,3 +34,6 @@ class Posting(models.Model):
             image_url (string): a publically access url string
         """
         pass
+
+    def __str__(self):
+        return "%s %s %s   " % (self.company, self.title, self.date_posted)

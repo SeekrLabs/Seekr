@@ -26,5 +26,4 @@ class Glove:
         for w in words:
             res += self.model.get(w, [0] * WORD_EMBEDDING_LEN)
         
-        # print("get_string_embedding", len(res), s, padding, words)
         return res

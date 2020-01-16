@@ -4,10 +4,28 @@ from profiles.models import Profile
 from postings.models import Posting
 
 class MessengerUser(models.Model):
-    id = models.CharField(max_length=32, primary_key=True, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    profile = models.OneToOneField(Profile, on_delete=models.CASCADE)
+    # id = models.CharField(max_length=32, primary_key=True, editable=False)
+    # user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True)
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, null=True)
     desired_location = models.CharField(max_length=32, blank=True)
-    desired_job_title = models.CharField(max_length=64, blank=True)
-    profil_pic_url = models.CharField(max_length=256, blank=True)
+    desired_title = models.CharField(max_length=64, blank=True)
+    profile_pic_url = models.CharField(max_length=256, blank=True)
     gender = models.CharField(max_length=16, blank=True)
+
+    def get_postings(self, offset):
+        return self.sort_postings(self.filter_postings())[offset:offset+10]
+
+    def filter_postings(self):
+        # Title
+        title_words = self.desired_title.split()
+        base_queryset = Posting.objects.all()
+        for word in title_words:
+            base_queryset = base_queryset.filter(title__icontains=word)
+        
+        # Location
+        base_queryset = base_queryset.filter(location=self.desired_location)
+
+        return base_queryset
+
+    def sort_postings(self, postings):
+        return postings.order_by('date_posted')

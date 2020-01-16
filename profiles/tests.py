@@ -9,6 +9,10 @@ class ProfileTestCase(TestCase):
     def setUp(self):
         self.p = Profile()
 
+    def test_prod(self):
+        l = LinkedInScraper()
+        
+
     def test_false(self):
         linkedin = LinkedInScraper()
         linkedin.login()
