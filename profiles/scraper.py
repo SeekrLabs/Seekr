@@ -197,7 +197,7 @@ class LinkedInScraper(SeleniumScraper):
         url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split())
         self.visit(url)
 
-    def search_more_profiles(self, company, role, num_profiles_collected): #TODO: implement logic for fetching more profiles
+    def search_more_profiles(self, company, role, num_profiles_collected): 
         profiles = []
         if (num_profiles_collected) %10 != 0:
             time.sleep(2)
@@ -226,16 +226,35 @@ class LinkedInScraper(SeleniumScraper):
 
         return profile_links
 
+    def collect_more_profile(self, num_profiles_collected, num_profiles_needed, company, role):
+        profile_links = set()
+        num_profiles_collected = num_profiles_collected
+        while (num_profiles_collected < num_profiles_needed):
+            self.last_page_num+=1
+            url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split()) + "&page="+str(self.last_page_num)
+            self.visit(url)
+            time.sleep(2)
+            new_profiles = self.d.find_elements_by_xpath('//a[contains(@class, "search-result__result-link ember-view")]')
+            profile_links = set()
+            profile_links = set(p.get_attribute('href') for p in new_profiles)
+
+            for link in profile_links:
+                if self.get_profile_by_url(link) == True:
+                    num_profiles_collected +=1
+
     def store_profiles(self, profile_links):
         num_profiles_saved_to_db = 0
         for link in profile_links:
             if self.get_profile_by_url(link) == True:
                 num_profiles_saved_to_db +=1
+            time.sleep(2)
 
         return num_profiles_saved_to_db
 
-    def get_profiles(self, company, role, num_profiles=21, exclude_urls=[]): # get number of profiles as specified in the arg and store them in database
+    def get_profiles(self, company, role, num_profiles=10, exclude_urls=[]): # get number of profiles as specified in the arg and store them in database
         profiles = self.collect_basic_profile(company, role, num_profiles, exclude_urls)
+        num_profiles_saved_to_db = self.store_profiles(profiles)
+        self.collect_more_profile(num_profiles_saved_to_db, num_profiles, company, role)
 
     # returning a boolean to indicate if we have stored the profile into DB 
     def get_profile_by_url(self, profile_url): # storing the profile into the db
@@ -260,7 +279,6 @@ class LinkedInScraper(SeleniumScraper):
         # parsing the start and end date for experiences
         experience_date_range = experiences[0]["dates"]
         is_experience_current = True
-        print("experience_date_range: ", experience_date_range)
         experience_start_date_month = experience_date_range.split('\n')[1].split(' ')[0]
         experience_start_date_year = experience_date_range.split('\n')[1].split(' ')[1]
         experience_start_date = datetime.strptime(experience_start_date_month + " 01 " + experience_start_date_year, '%b %d %Y')
@@ -296,23 +314,6 @@ class LinkedInScraper(SeleniumScraper):
 
         # saving the entire profile into DB
         profile.save()
-
-        # print("Name: ", profile.name)
-        # print("Location: ", profile.location)
-        # print('\n', 'Experience:')
-        # print("Company: ", profile.experience_set.get(id=1).company)
-        # print("Description: ", profile.experience_set.get(id=1).description)
-        # print("Start Date: ", profile.experience_set.get(id=1).start_date)
-        # print("End Date: ", profile.experience_set.get(id=1).end_date)
-        # print('\n', "Education:")
-        # print("School Name: ", profile.education_set.get(id=1).school_name)
-        # print("Degree: ", profile.education_set.get(id=1).degree)
-        # print("Field of Study: ", profile.education_set.get(id=1).field_of_study)
-        # print("Description: ", profile.education_set.get(id=1).description)
-        # print("GPA: ", profile.education_set.get(id=1).gpa)
-        # print("Start Date: ", profile.education_set.get(id=1).start_date)
-        # print("End Date: ", profile.education_set.get(id=1).end_date)
-
         return True
 
     def parse_profile_experiences(self):
