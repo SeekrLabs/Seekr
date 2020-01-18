@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '5bfwf=oys$=(ccjdz+5k!dbbh(n4ae%ry39=1sco4qdtr)ts95'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = int(os.environ.get("SEEKR_DEBUG", default=1))
 
 ALLOWED_HOSTS = ['*']
 
@@ -74,15 +74,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Seekr.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
+DATABASES_AVAILABLE = {
+    'prod': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('RDS_DB_NAME', ''),
+        'USER': os.environ.get('RDS_USERNAME', ''),
+        'PASSWORD': os.environ.get('RDS_PASSWORD', ''),
+        'HOST': os.environ.get('RDS_HOSTNAME', ''),
+        'PORT': os.environ.get('RDS_PORT', ''),
+    },
+    'dev': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
+}
+
+# Database
+# https://docs.djangoproject.com/en/3.0/ref/settings/#databases
+database = os.environ.get('VA_SEEKR_DATABASE', 'dev')
+DATABASES = {
+    'default': DATABASES_AVAILABLE[database]
 }
 
 

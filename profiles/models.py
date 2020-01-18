@@ -6,8 +6,6 @@ from config import glove
 from constants import *
 from .schools import School
 
-if any(command in sys.argv for command in ['runserver', 'shell', 'test']):
-    from .schools import School
 
 class Profile(models.Model):
     name = models.CharField(max_length=128, default='', blank=True)
