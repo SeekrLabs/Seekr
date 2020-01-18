@@ -9,7 +9,8 @@ from .schools import School
 
 class Profile(models.Model):
     name = models.CharField(max_length=128, default='', blank=True)
-    location = models.CharField(max_length=64, blank=True)
+    location = models.CharField(max_length=64, blank=True) #changed from DateField to CharField
+    profile_url = models.CharField(max_length = 200, default = "")
 
     def to_vector(self, profile_simulation_date):
         """ 
@@ -45,13 +46,14 @@ class Profile(models.Model):
         else:
             return self.education_set.all()[0].to_vector(profile_simulation_date)
 
+
 class Experience(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     company = models.CharField(max_length=128, default='')
     title = models.CharField(max_length=32, default='')
     description = models.CharField(max_length=128, default='')
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField(default='')
+    end_date = models.DateField(default='')
     is_current = models.BooleanField()
 
 class Education(models.Model):
@@ -62,8 +64,8 @@ class Education(models.Model):
     description = models.CharField(max_length=128, default='', blank=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0, blank=True, null=True)
 
-    start_date = models.DateField()
-    end_date = models.DateField(blank=True)
+    start_date = models.DateField(default='')
+    end_date = models.DateField(default='', blank=True)
     is_current = models.BooleanField()
     
     def to_vector(self, profile_simulation_date):
