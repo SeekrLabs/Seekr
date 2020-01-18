@@ -194,7 +194,8 @@ class LinkedInScraper(SeleniumScraper):
     :param query: String that queries the people tab of linkedin
     """
     def search_profiles_in_company_role(self, company, role):
-        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split())
+        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split()) + "&page="+str(self.last_page_num)
+        self.last_page_num+=1
         self.visit(url)
 
     def search_more_profiles(self, company, role, num_profiles_collected): 
@@ -266,15 +267,16 @@ class LinkedInScraper(SeleniumScraper):
         experiences = self.parse_profile_experiences()
         education = self.parse_profile_education()
 
-        if experiences is None or education is None:
+        if experiences is None or education is None: # not a valid profile to be stored in DB
             return False 
 
         gpa = None
         if education['grade'] is not None:
             gpa = LinkedInScraper.extract_gpa(education['grade'])
+
         is_education_current = False
-        #if education["end_date"] >= datetime.today():
-            #is_education_current = True
+        if education["end_date"] >= datetime.today():
+            is_education_current = True
 
         # parsing the start and end date for experiences
         experience_date_range = experiences[0]["dates"]
@@ -291,11 +293,12 @@ class LinkedInScraper(SeleniumScraper):
             experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
 
         # constructing the Profile object first by setting the name and location
-        profile = Profile(name = name, location = location)
+        profile = Profile(name = name, location = location, profile_url = profile_url)
         profile.save()
         profile.experience_set.create(
                 company=experiences[0]["company"],
                 description=experiences[0]["description"],
+                title = experiences[0]["title"],
                 start_date=experience_start_date,
                 end_date=experience_end_date,
                 is_current=is_experience_current

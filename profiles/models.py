@@ -12,6 +12,7 @@ if any(command in sys.argv for command in ['runserver', 'shell', 'test']):
 class Profile(models.Model):
     name = models.CharField(max_length=128, default='', blank=True)
     location = models.CharField(max_length=64, blank=True) #changed from DateField to CharField
+    profile_url = models.CharField(max_length = 200, default = "")
 
     def to_vector(self, profile_simulation_date):
         """ 
