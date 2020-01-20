@@ -1,5 +1,7 @@
 from .scraper import LinkedInScraper
 import time
+import urllib.request
+import json
 #from conf import EMAIL, PASSWORD
 from profiles.models import Profile, Education, Experience
 
@@ -36,4 +38,16 @@ class LinkedIn:
     # LinkedIn Search is restricted to certain amount of people,
     # Can use google to search instead.
     def get_linkedin_urls_google_search(self, company, title):
-        pass
+        url = "https://www.googleapis.com/customsearch/v1?key=AIzaSyDzcTjz01suKZVSVvYEw_lGqS33B2Qg4p0&cx=007069847805046474386:fvqonhqh23m&q=" + company + title
+
+        searchResult = urllib.request.urlopen(url)
+        data = searchResult.read()
+        encodedData = searchResult.info().get_content_charset('utf-8')
+        resultingData = json.loads(data.decode(encodedData))
+
+        urlList = []
+
+        for results in resultingData["items"]:
+            urlList.append(results["link"])
+
+        return urlList
