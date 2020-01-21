@@ -38,7 +38,7 @@ class LinkedIn:
     # LinkedIn Search is restricted to certain amount of people,
     # Can use google to search instead.
     def get_linkedin_urls_google_search(self, company, title):
-        url = "https://www.googleapis.com/customsearch/v1?key=AIzaSyDzcTjz01suKZVSVvYEw_lGqS33B2Qg4p0&cx=007069847805046474386:fvqonhqh23m&q=" + company + title
+        url = "https://www.googleapis.com/customsearch/v1?key=&cx=&q=" + company + title
 
         searchResult = urllib.request.urlopen(url)
         data = searchResult.read()
