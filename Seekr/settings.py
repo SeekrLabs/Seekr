@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '5bfwf=oys$=(ccjdz+5k!dbbh(n4ae%ry39=1sco4qdtr)ts95'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("SEEKR_DEBUG", default=1))
+DEBUG = 1#int(os.environ.get("SEEKR_DEBUG", default=1))
 
 ALLOWED_HOSTS = ['*']
 
@@ -91,7 +91,7 @@ DATABASES_AVAILABLE = {
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-database = os.environ.get('VA_SEEKR_DATABASE', 'dev')
+database = os.environ.get('SEEKR_DATABASE', 'dev')
 DATABASES = {
     'default': DATABASES_AVAILABLE[database]
 }
@@ -135,7 +135,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-NOSE_ARGS = ['--nocapture',
-             '--nologcapture',]
+# NOSE_ARGS = ['--nocapture',
+#              '--nologcapture',]
 
-os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+# os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = os.environ.get("SEEKR_ASYNC", default="false")

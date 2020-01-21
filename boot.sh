@@ -1,4 +1,4 @@
 #!/bin/bash
 source venv/bin/activate
-ls
-exec gunicorn -b :5000 --access-logfile - --error-logfile - Seekr.wsgi:application
+python manage.py migrate
+exec gunicorn -b :5000 --access-logfile - Seekr.wsgi:application 7

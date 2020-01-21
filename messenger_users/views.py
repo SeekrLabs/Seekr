@@ -17,7 +17,7 @@ def create_messenger_user(request):
     profile_pic_url = data['profile_pic_url']
     first_name = data['first_name']
     last_name = data['last_name']
-
+    
     if not MessengerUser.objects.filter(pk=messenger_id).exists():  
         MessengerUser.objects.create(
             id=messenger_id,
@@ -29,7 +29,10 @@ def create_messenger_user(request):
         response['messages'].append({
             'text': "Success!"
         })
+        print("Success")
         return JsonResponse(response)
+        
+    print("Exists")
     response['messages'].append({
         'text': "User exists."
     })

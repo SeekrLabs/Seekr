@@ -36,4 +36,4 @@ class Posting(models.Model):
         pass
 
     def __str__(self):
-        return "%s %s %s   " % (self.company, self.title, self.date_posted)
+        return "%s %s %s" % (self.company, self.title, self.date_posted)

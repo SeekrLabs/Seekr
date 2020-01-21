@@ -4,15 +4,19 @@ import requests
 from datetime import date, timedelta
 import datetime
 from .models import Posting
+import sys
 
 def repeat():
     indeed = IndeedIngestion()
+    num_init_pages = int(sys.argv[-1])
+    indeed.ingest_jobs(num_init_pages)
+    
     while True:
         seconds_til_midnight = time_until_end_of_day().seconds
         print("Sleeping for %d seconds." % seconds_til_midnight)
         time.sleep(seconds_til_midnight)
         print('Starting Indeed ingestion.')
-        indeed.ingest_jobs()
+        indeed.ingest_jobs(1)
         
 
 def time_until_end_of_day(dt=None):
@@ -29,18 +33,19 @@ class IndeedIngestion:
     titles = ['engineer']
     BASE_URL_CA = 'https://www.indeed.ca/jobs?&sort=date&limit=50'
     
-    def ingest_jobs(self):
+    def ingest_jobs(self, num_prev_days):
         for ca_loc in self.canada_locations:
             for title in self.titles:
                 url = self.BASE_URL_CA + '&q=' + title + '&l=' + ca_loc
-                self.ingest_jobs_from_url(url, ca_loc)
+                self.ingest_jobs_from_url(url, ca_loc, num_prev_days)
 
-    def ingest_jobs_from_url(self, start_url, location):
+    def ingest_jobs_from_url(self, start_url, location, num_prev_days):
         today = date.today()
         postings = []
         ad_num = 0
-        posted_in_last_day = True
-        while posted_in_last_day:
+        backfill_date = date.today() - timedelta(days=num_prev_days)
+        posting_in_range = True
+        while posting_in_range:
             url = start_url + '&start=' + str(ad_num)
             ad_num += 50
             print('Issuing GET: ' + url)
@@ -60,10 +65,10 @@ class IndeedIngestion:
                     posting_db = posting.to_model()
                     posting_db.save()
 
-                    posted_in_last_day = (posting.date_posted == today) \
-                            or (posting.date_posted == today - timedelta(days=1))
-                    if not posted_in_last_day:
-                        print("Stopping Ingestion.")
+                    posting_in_range = (posting.date_posted >=  backfill_date)
+
+            if not posting_in_range:
+                print("Stopping Ingestion.")
 
 class IndeedJobAd:
     # Constants
