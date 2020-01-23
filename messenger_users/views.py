@@ -1,14 +1,12 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from .models import MessengerUser
+from .chatfuel import *
 import json
 
 # # Skeleton code
 # # request.POST is a dictionary with request data
 def create_messenger_user(request):
-    response = {
-        "messages": []
-    }
     data = json.loads(request.body)
     print(data)
 
@@ -26,18 +24,18 @@ def create_messenger_user(request):
             first_name=first_name,
             last_name=last_name,
         )
-        response['messages'].append({
-            'text': "Success!"
-        })
-        print("Success")
-        return JsonResponse(response)
-        
-    print("Exists")
-    response['messages'].append({
-        'text': "User exists."
-    })
     
-    return JsonResponse(response)
+    else:
+        # Update existing user if it's already in Database
+        user = MessengerUser.objects.get(pk=messenger_id)
+        user.gender = gender
+        user.profile_pic_url = profile_pic_url
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save()
+    
+    response = ChatfuelResponse()
+    return JsonResponse(response.to_dict())
 
 def add_linkedin_profile(request):
     pass
@@ -58,22 +56,39 @@ def add_linkedin_profile(request):
 #     pass
 
 def search_jobs(request):
-    response = {
-        "messages": []
-    }
+
     data = json.loads(request.body)
     print(data)
+
     messenger_id = int(data['messenger_id'])
     title = data['title']
     location = data['location']
-    offset = 0
+    offset = int(data['page'])
 
     user = MessengerUser.objects.get(pk=messenger_id)
     postings = user.get_postings(title, location, offset)
 
+
+    gallery_message = GalleryMessage("square")
+    
     for posting in postings:
-        response['messages'].append({
-            "text": str(posting)
-        })
+        if posting.image_url == '':
+            image_url = 'https://blog.herzing.ca/hubfs/becoming%20a%20programmer%20analyst%20lead-1.jpg'
+        else:
+            image_url = posting.image_url
+
+        apply_button = UrlButton("Apply Now!", posting.url)
+        gallery_card = GalleryCard(posting.title, posting.company, image_url,
+                buttons=[apply_button])
+
+        gallery_message.add_card(gallery_card)
+
+    next_page = QuickReply("Next Page", block_name="JobSearch")
+    next_page.set_attribute("result_page", str(offset+1))
+    gallery_message.add_quick_reply(next_page)
+
+    response = ChatfuelResponse(messages=[])
+    response.add_message(gallery_message)
+    response = response.to_dict()
 
     return JsonResponse(response)
