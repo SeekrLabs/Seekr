@@ -23,7 +23,7 @@ Pushing and pulling from your branch:
 git pull origin [branch]
 ```
 ```
-git commit -a -m [message]
+git commit [files you want added, if any were created] -m [message]
 git push origin [branch]
 ```
 
