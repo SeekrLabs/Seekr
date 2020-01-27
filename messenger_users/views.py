@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from .models import MessengerUser
+from profiles.models import Profile
+from global_variables import linkedin_scraper
 from .chatfuel import *
 import json
 
@@ -37,11 +39,33 @@ def create_messenger_user(request):
     response = ChatfuelResponse()
     return JsonResponse(response.to_dict())
 
-def add_linkedin_profile(request):
-    pass
+def confirm_linkedin_profile(request):
+    
+    data = json.loads(request.body)
+    messenger_id = int(data['messenger_id'])
+    username = data['linkedin_username']
 
-# def confirm_linkedin_profile(request):
-#     pass
+    print("Received data: messenger_id: %s, linkedin_username: %s" \
+            %(messenger_id, username))
+
+    response = ChatfuelResponse(messages=[])
+    profile_url = 'https://www.linkedin.com/in/' + username
+
+    if Profile.username_validator(username) \
+            and linkedin_scraper.get_profile_by_url(profile_url):
+        
+        message = TextMessage("Great! We've found you.")    
+        response.add_message(message)
+        response.add_redirect("Menu")
+            
+    else:
+        response.add_redirect("VerifyLinkedIn")
+        
+    
+    response = response.to_dict()
+    return JsonResponse(response)
+
+
 
 # def add_preferences(request):
 #     pass

@@ -4,10 +4,11 @@ import urllib.request
 import json
 #from conf import EMAIL, PASSWORD
 from profiles.models import Profile, Education, Experience
+from global_variables import linkedin_scraper
 
 class LinkedIn:
     def __init__(self):
-        self.scraper = LinkedInScraper()
+        self.scraper = linkedin_scraper
 
     # Checks database for matches, and scrapes more if not enough
     def get_profiles(self, company, title, num_profiles):

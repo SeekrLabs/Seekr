@@ -17,4 +17,4 @@ selenium==3.141
 numpy==1.18.1
 django-extensions==2.2.5
 mysqlclient==1.4.6
-Pillow=7.0.0
+Pillow==7.0.0
