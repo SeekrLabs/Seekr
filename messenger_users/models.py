@@ -4,7 +4,7 @@ from profiles.models import Profile
 from postings.models import Posting
 
 class MessengerUser(models.Model):
-    # id = models.CharField(max_length=32, primary_key=True, editable=False)
+    id = models.CharField(max_length=32, primary_key=True, editable=False)
     # user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True)
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, null=True)
     first_name = models.CharField(max_length=32, blank=True)
@@ -17,7 +17,7 @@ class MessengerUser(models.Model):
     def get_postings(self, title, location, offset):
         return self.sort_postings(
             self.filter_postings(title, location)
-        )[offset:offset+10]
+        )[offset*10:offset*10+10]
 
     def filter_postings(self, title, location):
         # Title

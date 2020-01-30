@@ -12,7 +12,7 @@ def create_messenger_user(request):
     data = json.loads(request.body)
     print(data)
 
-    messenger_id = int(data['messenger_id'])
+    messenger_id = data['messenger_id']
     gender = data['gender']
     profile_pic_url = data['profile_pic_url']
     first_name = data['first_name']
@@ -42,7 +42,7 @@ def create_messenger_user(request):
 def confirm_linkedin_profile(request):
     
     data = json.loads(request.body)
-    messenger_id = int(data['messenger_id'])
+    messenger_id = data['messenger_id']
     username = data['linkedin_username']
 
     print("Received data: messenger_id: %s, linkedin_username: %s" \
@@ -84,7 +84,7 @@ def search_jobs(request):
     data = json.loads(request.body)
     print(data)
 
-    messenger_id = int(data['messenger_id'])
+    messenger_id = data['messenger_id']
     title = data['title']
     location = data['location']
     offset = int(data['page'])
