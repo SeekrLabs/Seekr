@@ -92,7 +92,6 @@ def search_jobs(request):
     user = MessengerUser.objects.get(pk=messenger_id)
     postings = user.get_postings(title, location, offset)
 
-
     gallery_message = GalleryMessage("square")
     
     for posting in postings:
