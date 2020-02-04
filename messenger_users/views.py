@@ -128,6 +128,6 @@ def search_jobs(request):
     
     if wantAlert:
         newAlert = Alert(jobTitle=title,jobLocation=location)
-        Alert.objects.bulk_create(newAlert)
+        newAlert.save()
     
     return JsonResponse(response)
