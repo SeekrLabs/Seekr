@@ -64,3 +64,9 @@ class Posting(models.Model):
     def __str__(self):
         return '{:39}{:24}{:24}{}\t{:70}'.format(self.title[:35], self.company[:20],
                 self.city[:20], self.date_posted, self.url[:70])
+    
+class Alert(models.Model):
+    city = models.CharField(max_length=20, default='')
+    state = models.CharField(max_length=8, default='')
+    country = models.CharField(max_length=16, default='')
+    
