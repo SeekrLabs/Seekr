@@ -94,7 +94,7 @@ def search_jobs(request):
     postings = user.get_postings(title, location, offset)
 
     #Alert users based on postings
-    #---
+    alertGallery = GalleryMessage("square")
     
     gallery_message = GalleryMessage("square")
     
@@ -103,11 +103,16 @@ def search_jobs(request):
             image_url = 'https://blog.herzing.ca/hubfs/becoming%20a%20programmer%20analyst%20lead-1.jpg'
         else:
             image_url = posting.image_url
-
+            
         apply_button = UrlButton("Apply Now!", posting.url)
         gallery_card = GalleryCard(posting.title, posting.company, image_url,
                 buttons=[apply_button])
 
+        if not Posting.objects.filter(id=posting.id).exists():
+            #Alert all users who have this type of preference
+            alertGalleryElement = GalleryCard(posting.title, posting.company, image_url, buttons=[apply_button])
+            alertGallery.add_card(alertGalleryElement)
+        
         gallery_message.add_card(gallery_card)
 
     next_page = QuickReply("Next Page", block_name="JobSearch")
@@ -129,5 +134,13 @@ def search_jobs(request):
     if wantAlert:
         newAlert = Alert(jobTitle=title,jobLocation=location,msgUser=user)
         newAlert.save()
+    
+    #Send alert message gallery to all users who want it
+    for alerts in Alert.objects.filter(jobTitle=title,jobLocation=location):
+        #Send a the alertGallery to user with chatfuel reengage
+        messengerUser = alerts.msgUser.id
+        #Send all messengerUser's the alertGallery gallery
+        
+        
     
     return JsonResponse(response)
