@@ -66,5 +66,5 @@ class Posting(models.Model):
                 self.city[:20], self.date_posted, self.url[:70])
     
 class Alert(models.Model):
-    title = models.CharField(max_length=64, default='')
-    location = models.CharField(max_length=20, default='')
+    jobTitle = models.CharField(max_length=64, default='')
+    jobLocation = models.CharField(max_length=20, default='')
