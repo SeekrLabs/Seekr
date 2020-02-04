@@ -110,8 +110,20 @@ def search_jobs(request):
     next_page.set_attribute("result_page", str(offset+1))
     gallery_message.add_quick_reply(next_page)
 
+    alert = TextMessage("Would you like to recieve alerts related to this search?")
+    
     response = ChatfuelResponse(messages=[])
     response.add_message(gallery_message)
+    response.add_message(alert)
+    
     response = response.to_dict()
-
+    
+    #Handle code for checking if user says yes or no to this
+    #---
+    wantAlert = false
+    
+    if wantAlert:
+        
+        
+    
     return JsonResponse(response)
