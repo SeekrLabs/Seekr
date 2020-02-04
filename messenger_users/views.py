@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from .models import MessengerUser
 from profiles.models import Profile
+from postings.models import Alert
 from global_variables import linkedin_scraper
 from .chatfuel import *
 import json
@@ -92,6 +93,9 @@ def search_jobs(request):
     user = MessengerUser.objects.get(pk=messenger_id)
     postings = user.get_postings(title, location, offset)
 
+    #Alert users based on postings
+    #---
+    
     gallery_message = GalleryMessage("square")
     
     for posting in postings:
@@ -123,7 +127,7 @@ def search_jobs(request):
     wantAlert = false
     
     if wantAlert:
-        
-        
+        newAlert = Alert(jobTitle=title,jobLocation=location)
+        Alert.objects.bulk_create(newAlert)
     
     return JsonResponse(response)
