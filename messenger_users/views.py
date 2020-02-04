@@ -127,7 +127,7 @@ def search_jobs(request):
     wantAlert = false
     
     if wantAlert:
-        newAlert = Alert(jobTitle=title,jobLocation=location)
+        newAlert = Alert(jobTitle=title,jobLocation=location,msgUser=user)
         newAlert.save()
     
     return JsonResponse(response)
