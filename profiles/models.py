@@ -56,14 +56,13 @@ class Profile(models.Model):
         else:
             return self.education_set.all()[0].to_vector(profile_simulation_date)
 
-
 class Experience(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     company = models.CharField(max_length=128, default='')
     title = models.CharField(max_length=32, default='')
     description = models.CharField(max_length=128, default='')
-    start_date = models.DateField(default='')
-    end_date = models.DateField(default='')
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
     is_current = models.BooleanField()
 
 class Education(models.Model):
@@ -73,9 +72,8 @@ class Education(models.Model):
     field_of_study = models.CharField(max_length=64, default='')
     description = models.CharField(max_length=128, default='', blank=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0, blank=True, null=True)
-
-    start_date = models.DateField(default='')
-    end_date = models.DateField(default='', blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
     is_current = models.BooleanField()
     
     def to_vector(self, profile_simulation_date):
