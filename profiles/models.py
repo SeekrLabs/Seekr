@@ -6,8 +6,9 @@ from utils.glove import glove
 from constants import *
 from .schools import School
 
-
 class Profile(models.Model):
+    VECTOR_LEN = SKILLS_LEN + EDUCATION_VECTOR_LEN + EXPERIENCE_VECTOR_LEN
+
     name = models.CharField(max_length=128, default='', blank=True)
     location = models.CharField(max_length=64, blank=True)
     profile_url = models.CharField(max_length = 200, default = "")
@@ -21,7 +22,7 @@ class Profile(models.Model):
             print("Invalid username format")
             return False
         return True
-        
+    
     def to_vector(self, profile_simulation_date):
         """ 
         Returns a numerical representation of profile
@@ -48,13 +49,20 @@ class Profile(models.Model):
             skills_repr.add_text(edu.description, edu.end_date)
         skills_vector = skills_repr.to_vector()
 
-        return education_vector + experience_vector + skills_vector
+        return np.array(education_vector + experience_vector + skills_vector, dtype=np.float32)
         
     def education_to_vector(self, profile_simulation_date):
         if len(self.education_set.all()) == 0:
             return [0] * EDUCATION_VECTOR_LEN
         else:
             return self.education_set.all()[0].to_vector(profile_simulation_date)
+
+    def get_experience_start_date(self, company, title):
+        for exp in self.experience_set:
+            if exp.company.lower() == company.lower() and exp.title == title.lower():
+                return exp.start_date
+        return False
+
 
 class Experience(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)

@@ -1,27 +1,47 @@
 from django.db import models
 from datetime import date
 from PIL import Image, ImageDraw
+from global_variables import linkedin
+import numpy as np
+from profiles.models import Profile
 
 class Posting(models.Model):
     id = models.CharField(max_length=64, primary_key=True, editable=False)
-    title = models.CharField(max_length=64, default='')
-    company = models.CharField(max_length=64, default='')
+    title = models.CharField(max_length=64, blank=True)
+    company = models.CharField(max_length=64, blank=True)
 
-    city = models.CharField(max_length=20, default='')
-    state = models.CharField(max_length=8, default='')
-    country = models.CharField(max_length=16, default='')
+    city = models.CharField(max_length=20, blank=True)
+    state = models.CharField(max_length=8, blank=True)
+    country = models.CharField(max_length=16, blank=True)
 
-    source = models.CharField(max_length=16, default='')
+    source = models.CharField(max_length=16, blank=True)
     date_posted = models.DateField(default=date.today)
-    url = models.URLField(default='')
-    vector = models.CharField(max_length=2048, default='')
-    description = models.CharField(max_length=256, default='')
+    url = models.URLField(blank=True)
+    vector = models.BinaryField()
+    description = models.CharField(max_length=256, blank=True)
     image_url = models.URLField(blank=True)
+
+    search_title = models.CharField(max_length=16, blank=True)
+    num_employees = models.IntegerField(null=True)
+
     # logo = models.URLField(default='')
     
-    # default_logo = default.jpg
-    # will need to add this to produce images
-    # need to have default "no image" jpeg
+    def generate_vector(self, num_profiles):
+        profiles = linkedin.get_profiles(self.company, self.search_title, num_profiles)
+        posting_vector = np.zeros(Profile.VECTOR_LEN, dtype=np.float32)
+        num_added_profiles = 0
+        for p in profiles:
+            exp_start_date = p.get_experience_start_date(self.company, self.search_title)
+            if exp_start_date:
+                posting_vector = np.add(posting_vector, p.to_vector(exp_start_date))
+                num_added_profiles += 1
+        posting_vector = np.divide(posting_vector, num_added_profiles)
+        
+        if num_added_profiles > 5:
+            self.vector = posting_vector.dumps()
+            self.num_employees = num_added_profiles
+            return True
+        return False
 
     def get_image_url(self):
         if self.image_url is None:

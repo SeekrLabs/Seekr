@@ -5,11 +5,10 @@ import os
 import json
 #from conf import EMAIL, PASSWORD
 from profiles.models import Profile, Education, Experience
-from global_variables import linkedin_scraper
 
 class LinkedIn:
-    def __init__(self):
-        self.scraper = LinkedInScraper()
+    def __init__(self, linkedin_scraper):
+        self.scraper = linkedin_scraper
         self.scraper.login()
 
     # Checks database for matches, and scrapes more if not enough
