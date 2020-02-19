@@ -6,7 +6,7 @@ from datetime import date, timedelta
 import numpy as np
 
 class MessengerUser(models.Model):
-    id = models.CharField(max_length=32, primary_key=True, editable=False)
+    id = models.CharField(max_length=32, primary_key=True)
     # user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True)
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, null=True)
     first_name = models.CharField(max_length=32, blank=True)
@@ -15,6 +15,8 @@ class MessengerUser(models.Model):
     desired_title = models.CharField(max_length=64, blank=True)
     profile_pic_url = models.CharField(max_length=256, blank=True)
     gender = models.CharField(max_length=16, blank=True)
+    saved_postings = models.ManyToManyField(Posting)
+
 
     def compute_similarity(self, posting):
         today = date.today()
@@ -26,12 +28,14 @@ class MessengerUser(models.Model):
 
         return cos_sim
 
-
     def get_postings(self, title, location, offset):
-        postings = self.filter_postings(title, location)
-        postings.sort(key=self.compute_similarity)
+        # postings = self.filter_postings(title, location)
+        # postings.sort(key=self.compute_similarity)
         
-        return postings[offset*10:offset*10+10]
+        # return postings[offset*10:offset*10+10]
+        return self.sort_postings(
+            self.filter_postings(title, location)
+        )[offset*10:offset*10+10]
 
     def filter_postings(self, title, location):
         # Title
@@ -41,7 +45,7 @@ class MessengerUser(models.Model):
             base_queryset = base_queryset.filter(title__icontains=word)
         
         # Location
-        base_queryset = base_queryset.filter(location__icontains=location)
+        base_queryset = base_queryset.filter(city__icontains=location)
 
         # New jobs
         last_day = date.today() - timedelta(days=30)

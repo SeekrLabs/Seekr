@@ -27,6 +27,7 @@ class Posting(models.Model):
     # logo = models.URLField(default='')
     
     def generate_vector(self, num_profiles):
+        return True
         profiles = linkedin.get_profiles(self.company, self.search_title, num_profiles)
         posting_vector = np.zeros(Profile.VECTOR_LEN, dtype=np.float32)
         num_added_profiles = 0

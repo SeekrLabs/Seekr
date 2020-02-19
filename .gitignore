@@ -75,3 +75,5 @@ venv/
 utils/glove.6B.50d.txt
 .ipynb_checkpoints/
 debug.py
+
+.vscode/settings.json

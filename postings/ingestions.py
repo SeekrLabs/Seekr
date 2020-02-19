@@ -95,15 +95,15 @@ class IndeedIngestion:
             if num_existing_postings > 20:
                 posting_in_range = False
             
-            postings = []
+            filtered_postings = []
             for p in postings:
                 if p.id not in existing_postings_id:
                     if p.generate_vector(10):
-                        postings.append(p)
+                        filtered_postings.append(p)
                     
 
-            print("Length of about to be commited postings: {}".format(len(postings)))
-            Posting.objects.bulk_create(postings)
+            print("Length of about to be commited postings: {}".format(len(filtered_postings)))
+            Posting.objects.bulk_create(filtered_postings)
 
             if page_num == 19:
                 posting_in_range = False
