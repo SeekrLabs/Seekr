@@ -1,4 +1,5 @@
 from constants import *
+from constants import *
 
 class Glove:
     def __init__(self, glove_file):
@@ -27,3 +28,5 @@ class Glove:
             res += self.model.get(w, [0] * WORD_EMBEDDING_LEN)
         
         return res
+
+glove = Glove(GLOVE_FILE)

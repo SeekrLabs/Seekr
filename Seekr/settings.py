@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '5bfwf=oys$=(ccjdz+5k!dbbh(n4ae%ry39=1sco4qdtr)ts95'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = 1#int(os.environ.get("SEEKR_DEBUG", default=1))
+DEBUG = int(os.environ.get("SEEKR_DEBUG", default=1))
 
 ALLOWED_HOSTS = ['*']
 
@@ -139,3 +139,16 @@ STATIC_URL = '/static/'
 #              '--nologcapture',]
 
 # os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = os.environ.get("SEEKR_ASYNC", default="false")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO"},
+    },
+}

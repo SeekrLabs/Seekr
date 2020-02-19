@@ -1,6 +1,6 @@
 #from .models import Experience
 from datetime import date, timedelta
-from config import glove
+from utils.glove import glove
 from .data.skills_one_hot import skills_one_hot
 from constants import *
 
