@@ -4,13 +4,22 @@ class BlockButton:
     def __init__(self, title: str, block_name: str):
         self.title = title
         self.block_name = block_name
-    
+        self.attributes = {}
+
+    def set_attribute(self, key, val):
+        self.attributes[key] = val
+
     def to_dict(self):
-        return {
+        button = {
             "type": "show_block",
             "block_names": [self.block_name],
             "title": self.title,
         }
+
+        if len(self.attributes) > 0:
+            button['set_attributes'] = self.attributes
+
+        return button
 
 class UrlButton:
     def __init__(self, title: str, url: str):

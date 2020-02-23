@@ -141,14 +141,27 @@ STATIC_URL = '/static/'
 # os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = os.environ.get("SEEKR_ASYNC", default="false")
 
 LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'console',
         },
     },
-    "loggers": {
-        "django": {"handlers": ["console"], "level": "INFO"},
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'app': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
     },
+    'formatters': {
+        'console': {
+            'format': '%(asctime)s %(levelname)10s %(message)s'
+        },
+    }
 }
