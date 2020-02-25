@@ -6,11 +6,7 @@ class Posting(models.Model):
     id = models.CharField(max_length=64, primary_key=True, editable=False)
     title = models.CharField(max_length=64, default='')
     company = models.CharField(max_length=64, default='')
-
-    city = models.CharField(max_length=20, default='')
-    state = models.CharField(max_length=8, default='')
-    country = models.CharField(max_length=16, default='')
-
+    location = models.CharField(max_length=64, default='')
     source = models.CharField(max_length=16, default='')
     date_posted = models.DateField(default=date.today)
     url = models.URLField(default='')
@@ -62,5 +58,4 @@ class Posting(models.Model):
         pass
 
     def __str__(self):
-        return '{:39}{:24}{:24}{}\t{:70}'.format(self.title[:35], self.company[:20],
-                self.city[:20], self.date_posted, self.url[:70])
+        return "%s %s %s" % (self.company, self.title, self.date_posted)
