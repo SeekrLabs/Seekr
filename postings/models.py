@@ -7,6 +7,10 @@ from profiles.models import Profile
 import requests
 import textwrap
 from io import BytesIO
+import urllib.request
+import json
+import boto3
+import os
 
 class Posting(models.Model):
     id = models.CharField(max_length=64, primary_key=True, editable=False)
@@ -140,7 +144,7 @@ class Posting(models.Model):
             image_url (string): a publically access url string
         """
 
-        
+
         pass
 
     def __str__(self):
