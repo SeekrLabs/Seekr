@@ -1,5 +1,8 @@
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, WebDriverException, NoSuchElementException
+from selenium.common.exceptions import (
+    TimeoutException, StaleElementReferenceException, 
+    WebDriverException, NoSuchElementException
+)
 from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
@@ -10,11 +13,12 @@ import os
 from datetime import date, datetime
 from .models import Profile, Experience, Education
 import re
+from utils.utils import random_sleep
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app")
 
 POLL_FREQUENCY = 0.1
-WAIT_TIMEOUT = 20
+WAIT_TIMEOUT = 15
 WINDOW_SIZE = 800
 LINKEDIN_EMAIL = os.environ['LINKEDIN_EMAIL']
 LINKEDIN_PASSWORD = os.environ['LINKEDIN_PASSWORD']
@@ -32,6 +36,7 @@ class SeleniumScraper:
         self.d = driver
 
     def visit(self, url):
+        logger.info("Visiting {}".format(url))
         self.d.get(url)
 
     def quit(self):
@@ -40,16 +45,20 @@ class SeleniumScraper:
     def element_get_by_xpath_or_none(self, el, xpath_key, logs=True):
         """
         Get a web element through the xpath string passed.
-        If a TimeoutException is raised the else_case is called and None is returned.
+        If a TimeoutException is raised the else_case is called and None
+        is returned.
         :param driver: Selenium Webdriver to use.
         :param xpath: String containing the xpath.
-        :param wait_timeout: optional amounts of seconds before TimeoutException is raised, default WAIT_TIMEOUT is used otherwise.
-        :param logs: optional, prints a status message to stdout if an exception occures.
+        :param wait_timeout: optional amounts of seconds before
+        TimeoutException is raised, default WAIT_TIMEOUT is used otherwise.
+        :param logs: optional, prints a status message to stdout if an
+        exception occures.
         :return: The web element or None if nothing found.
         """
         try:
             return el.find_element_by_xpath(self.xpaths[xpath_key])
-        except (TimeoutException, StaleElementReferenceException, WebDriverException, NoSuchElementException) as e:
+        except (TimeoutException, StaleElementReferenceException,
+                WebDriverException, NoSuchElementException) as e:
             if logs:
                 return None
                 #logger.warning(f"XPATH: {xpath_key} ")
@@ -162,9 +171,10 @@ class SeleniumScraper:
 
 class LinkedInScraper(SeleniumScraper):
     urls = {'LINKEDIN_LOGIN_URL': 'https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin',
-                    'BASE_LINKEDIN': 'https://www.linkedin.com/',
-                    'LINKEDIN_PEOPLE_SEARCH': 'https://www.linkedin.com/search/results/people/?keywords=',
-                    'SIGN_IN': 'https://www.linkedin.com/uas/login?session_redirect=https%3A%2F%2Fwww%2Elinkedin%2Ecom%2Fin%2Fjoyliu3&amp;trk=public_auth-wall_profile'}
+            'BASE_LINKEDIN': 'https://www.linkedin.com/',
+            'LINKEDIN_PEOPLE_SEARCH': 'https://www.linkedin.com/search/results/people/?keywords={}&page={}',
+            'SIGN_IN': 'https://www.linkedin.com/uas/login?session_redirect=https%3A%2F%2Fwww%2Elinkedin%2Ecom%2Fin%2Fjoyliu3&amp;trk=public_auth-wall_profile'}
+    
     xpaths = {
         'USERNAME': '//*[@id="username"]',
         'PASSWORD': '//*[@id="password"]',
@@ -190,115 +200,76 @@ class LinkedInScraper(SeleniumScraper):
         'FETCH_PROFILE_FROM_SEARCH': '//a[contains(@class, "search-result__result-link ember-view")]'
     }
 
-    last_page_num = 1
-
     def login(self):
         self.visit(self.urls['LINKEDIN_LOGIN_URL'])
-        time.sleep(5)
-        self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
-        self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
 
-    """
-    :param query: String that queries the people tab of linkedin
-    """
-    def search_profiles_in_company_role(self, company, role):
-        """
-        Helper function that simply visits the search site for list of profiles.
-        :param company: Company name we're searching.
-        :param role: Role we're searching for.
-        """
-        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split()) + "&page="+str(self.last_page_num)
-        self.visit(url)
-
-    def search_more_profiles(self, company, role, num_profiles_collected): 
-        """
-        Helper functon that helps to go to the next search page and search through the whole page for profiles.
-        :param company: Company name we're searching.
-        :param role: Role we're searching for.
-        :param num_profiles_collected: Required to determine if we should continue to search on the same page or go to next search page.
-        :return: list of profiles as web elements
-        """
-        profiles = []
-        if (num_profiles_collected) %10 != 0:
-            time.sleep(2)
-            self.scroll_to_bottom(800)
-            profiles = self.get_multiple_by_xpath_or_none('FETCH_PROFILE_FROM_SEARCH')
-            self.last_page_num+=1
-        else: # NOTE: when the number of profiles collected is in multiples of 10
-            url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split()) + "&page="+str(self.last_page_num)
-            self.visit(url)
-            time.sleep(2)
-            profiles = self.get_multiple_by_xpath_or_none('FETCH_PROFILE_FROM_SEARCH')     
-        return profiles
-
-    def collect_basic_profile(self, company, role, num_profiles, exclude_urls):
-        """
-        Helper function that gets all the profile links from the returned web elements from search_more_profiles
-        :param company: Company name we're searching.
-        :param role: Role we're searching for, necessary for helper function to visit the site as role is a keyword.
-        :param num_profiles: Required number of profiles to fetch and store.
-        :return: list of profile links that were scraped from the search page.
-        """
-        self.search_profiles_in_company_role(company, role)
-        new_profiles = self.get_multiple_by_xpath_or_none('FETCH_PROFILE_FROM_SEARCH')  
-        profile_links = set()
-        profile_links = set(p.get_attribute('href') for p in new_profiles if p.get_attribute('href') not in exclude_urls)
+        logger.info("Looking for Email and Password text boxes...")
+        username = self.get_by_xpath_or_none('USERNAME', wait=True)
+        if username:
+            username.send_keys(LINKEDIN_EMAIL)
         
-        new_profiles = self.search_more_profiles(company, role, len(profile_links))
-        for p in new_profiles:
-            if p.get_attribute('href') not in exclude_urls:
-                profile_links.add(p.get_attribute('href'))
+        password = self.get_by_xpath_or_none('PASSWORD', wait=False)
+        if password:
+            password.send_keys(LINKEDIN_PASSWORD + '\n')
+        logger.info("Found input boxes, waiting for authentication...")
+        
 
-        # profile_links will always contain the entire set of profiles you see on a search page
-        return profile_links
 
-    def store_profiles(self, profile_links, company, role, num_profiles_needed):
-        """
-        Stores the profiles from profile_links into the Profiles Database.
-        We are storing all profiles that have worked at the desired company but might not be working under the desired role.
-        :param profile_links: Fetched links from previous helper functions.
-        :param company: Company name we're searching.
-        :param role: Role we're searching for.
-        :param num_profiles: Required number of profiles to fetch and store.
-        :return: number of profiles that were saved to db and for each of these profiles, their profile link will be added to exclude_urls which will be returned.
-        """
-        num_profiles_saved_to_db = 0
-        exclude_urls = []
-        for link in profile_links:
-            if self.get_profile_by_url(link, company, role) == True and num_profiles_saved_to_db<num_profiles_needed:
-                num_profiles_saved_to_db +=1
-                exclude_urls.append(link)
-            elif num_profiles_saved_to_db>=num_profiles_needed:
-                return num_profiles_saved_to_db, exclude_urls
+    def get_profile_urls(self, company, role, page_num, exclude_usernames=[]):
+        logger.info("Looking for {} roles at {} on the {} page...".format(
+            role, company, page_num))
 
-            time.sleep(2)
+        query = '%20'.join(company.split()) + '%20' + '%20'.join(role.split())
+        url = self.urls['LINKEDIN_PEOPLE_SEARCH'].format(query, page_num)
 
-        return num_profiles_saved_to_db, exclude_urls
+        self.visit(url)
+        random_sleep(1, 0.3)
+        self.scroll_to_bottom(800)
 
-    def get_profiles(self, company, role, num_profiles, exclude_urls=[]): 
+        new_profile_urls = [p.get_attribute('href')
+            for p in self.get_multiple_by_xpath_or_none('FETCH_PROFILE_FROM_SEARCH')]
+        
+        filtered_profile_urls = [p for p in new_profile_urls
+            if Profile.url_to_username(p) not in exclude_usernames]
+
+        return list(set(filtered_profile_urls))
+
+
+    def get_profiles(self, company, role, num_profiles, exclude_usernames=[]): 
         """
         Get the required number of profiles.
         This is done by multiple helper functions above.
         :param company: Company name we're searching.
         :param role: Role we're searching for.
         :param num_profiles: Required number of profiles to fetch and store.
-        :param exclude_urls: List of profile to exclude from fetching.
+        :param exclude_usernames: List of profile to exclude from fetching.
         """
-        profiles = self.collect_basic_profile(company, role, num_profiles, exclude_urls)
-        num_profiles_saved_to_db, new_exclude_urls = self.store_profiles(profiles, company, role, num_profiles)
-        exclude_urls += new_exclude_urls
+        page_num = 1
+        num_collected = 0
 
-        iteration = 0 # NOTE: putting a limit to avoid infinite while loop
+        profiles = []
 
-        while num_profiles_saved_to_db < num_profiles and iteration < 5:
-            num_profiles_needed = num_profiles-num_profiles_saved_to_db
-            profile_links = self.collect_basic_profile(company, role, num_profiles_needed, exclude_urls)
-            num_new_profiles_saved_to_db, new_exclude_urls = self.store_profiles(profile_links, company, role, num_profiles_needed)
-            exclude_urls += new_exclude_urls
-            num_profiles_saved_to_db += num_new_profiles_saved_to_db
-            iteration+=1
+        while num_collected < num_profiles and page_num < 10:
+            profile_urls = self.get_profile_urls(company, 
+                role, page_num, exclude_usernames)
 
-    def get_profile_by_url(self, profile_url, company, role): 
+            for profile_url in profile_urls:
+                profile = self.get_profile_by_url(profile_url, company, role)
+                if profile:
+                    profiles.append(profile)
+                    num_collected += 1
+                    if num_collected >= num_profiles:
+                        return profiles
+                else:
+                    logger.info("She/He doesn't appear to worked as a {} at {}".format(
+                        role, company))
+
+                random_sleep(1, 0.3)
+            page_num += 1
+
+        return profiles
+
+    def get_profile_by_url(self, profile_url, company="", role=""): 
         """
         Scrape basic information of a profile through the given profile URL and store them in Profiles DB.
         This is done by login into LinkedIn and going to the given profile URL.
@@ -306,24 +277,30 @@ class LinkedInScraper(SeleniumScraper):
         :param profile_url: Person's profile URL that we will be extracting information from.
         :return: True if we have stored the profile into DB, False if we did not store.
         """
-        
+        username = Profile.url_to_username(profile_url)
+
         self.visit(profile_url)
+        self.scroll_to_bottom(1500)
+
         name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
         location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
-        self.scroll_to_bottom(1200)
-
+        
         experiences = self.parse_profile_experiences(company, role)
-        if experiences is None: # saving time so we don't need to scrape education
+        if experiences is None:
+            logger.info("{} has no experience.".format(name))
             return False
 
         educations = self.parse_profile_education()
-
-        if educations is None: # not a valid profile to be stored in DB
-            return False 
-
         gpa = None
-        profile = Profile(name = name, location = location, profile_url = profile_url)
-        profile.save()
+
+        profile, created = Profile.objects.get_or_create(name=name, location=location, 
+            username=username)
+        
+        if not created:
+            logger.info("A profile with username {} exists in the database.".format(
+                username))
+        
+        education_list = []
         for education in educations:
             if education['grade'] is not None:
                 gpa = LinkedInScraper.extract_gpa(education['grade'])
@@ -332,7 +309,7 @@ class LinkedInScraper(SeleniumScraper):
             if education["end_date"] >= datetime.today():
                 is_education_current = True
 
-            profile.education_set.create(
+            e = Education(
                 school_name=education['institution'],
                 degree=education['degree'],
                 field_of_study = education['field_of_study'],
@@ -340,10 +317,15 @@ class LinkedInScraper(SeleniumScraper):
                 gpa=gpa,
                 start_date=education["start_date"],
                 end_date=education["end_date"],
-                is_current=is_education_current
+                is_current=is_education_current,
+                profile=profile,
             )
-            profile.save()         
+            education_list.append(e)
+            logger.info("Found education  {}".format(e))
 
+        Education.objects.bulk_create(education_list)
+
+        experience_list = []
         for experience in experiences:
             is_experience_current = True
             # NOTE: LinkedIn requires users to input experience date range
@@ -381,19 +363,23 @@ class LinkedInScraper(SeleniumScraper):
                     else:
                         experience_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
                         experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
-        
-            profile.experience_set.create(
-                    company=experience["company"],
-                    description=experience["description"],
-                    title = experience["title"],
-                    start_date=experience_start_date,
-                    end_date=experience_end_date,
-                    is_current=is_experience_current
-            )
-
-            profile.save()
             
-        return True
+            e = Experience(
+                company=experience["company"],
+                description=experience["description"],
+                title = experience["title"],
+                start_date=experience_start_date,
+                end_date=experience_end_date,
+                is_current=is_experience_current,
+                profile=profile,
+            )
+            experience_list.append(e)
+            logger.info("Found experience {}".format(e))
+
+            
+        Experience.objects.bulk_create(experience_list)
+
+        return profile
 
     def parse_profile_experiences(self, company, role):
         """
@@ -406,7 +392,7 @@ class LinkedInScraper(SeleniumScraper):
         if not exps:
             return None
 
-        experience_with_incorrect_company= 0
+        experience_with_incorrect_company = 0
         for exp in exps:
             temp = {}
             temp['dates'] = self.element_get_text_by_xpath_or_none(
@@ -419,7 +405,7 @@ class LinkedInScraper(SeleniumScraper):
                     exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
             #NOTE: Counting number of companies that are different than the company we're looking for
             if temp['company'].lower() != company.lower():
-                experience_with_incorrect_company +=1
+                experience_with_incorrect_company += 1
             experiences.append(temp)
 
         # Handling the case when the user doesn't have any experience in the desired company (when user did not update LinkedIn yet):
@@ -450,14 +436,14 @@ class LinkedInScraper(SeleniumScraper):
         Scrape all the education and corresponding details about each education on this profile page.
         If the profile doesn't have any education, or if the most recent education is missing school name, date range, or field of study, then return None.
         For any subsequent education that occurred earlier than the most recent education, do not add in the returning list if it's missing school name, date range, or field of study.
-        :return: List of dictionaries containing information about each education. Return None if above condition does not satisfy.
+        :return: List of dictionaries containing information about each education. Return [] if above condition does not satisfy.
         """
         educations = []
         get_educations = self.get_multiple_by_xpath_or_none("EDUCATION_MULTIPLE")
         if not get_educations: # if there isn't multiple educations, but this person has 1 education
             single_education_web_element = self.get_by_xpath_or_none("EDUCATION_SINGLE")
             if not single_education_web_element:
-                return None
+                return []
             get_educations = []
             get_educations.append(single_education_web_element)
 
@@ -471,11 +457,13 @@ class LinkedInScraper(SeleniumScraper):
             degree = self.element_get_text_by_xpath_or_none(
                     education, "DEGREE").split('\n')[1] if self.element_get_text_by_xpath_or_none(education, "DEGREE") is not None else ""
             
-            if "bachelor" in degree.lower():
+            degree = degree.lower()
+
+            if "bachelor" in degree or "bcs" in degree or "BSC" in degree :
                 degree = "Bachelor"
-            elif "master" in degree.lower():
+            elif "master" in degree:
                 degree = "Master"
-            elif "phd" in degree.lower():
+            elif "phd" in degree:
                 degree = "PhD"
             else:
                 degree = "Other"
@@ -503,9 +491,11 @@ class LinkedInScraper(SeleniumScraper):
             temp["description"] = self.element_get_text_by_xpath_or_none(
                     education, "EDUCATION_DESCRIPTION") if self.element_get_text_by_xpath_or_none(education, "EDUCATION_DESCRIPTION") is not None else ""
 
-            if iteration==0 and (temp["institution"] == "" or temp["field_of_study"] == "" or school_date_range == ""):
-                return None
-            elif iteration>=0 and (temp["institution"] != "" and temp["field_of_study"] != "" and school_date_range != ""):
+            if iteration == 0 and (temp["institution"] == ""
+                    or temp["field_of_study"] == "" or school_date_range == ""):
+                return []
+            elif iteration>=0 and (temp["institution"] != ""
+                    and temp["field_of_study"] != "" and school_date_range != ""):
                 educations.append(temp)
             iteration+=1
 

@@ -15,7 +15,9 @@ class MessengerUser(models.Model):
     desired_title = models.CharField(max_length=64, blank=True)
     profile_pic_url = models.CharField(max_length=256, blank=True)
     gender = models.CharField(max_length=16, blank=True)
+
     saved_postings = models.ManyToManyField(Posting)
+    clicked_postings = models.ManyToManyField(Posting, related_name="clicks")
 
 
     def compute_similarity(self, posting):
