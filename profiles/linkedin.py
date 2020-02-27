@@ -2,14 +2,15 @@ from .scraper import LinkedInScraper
 import time
 import urllib.request
 import os
-import json
-#from conf import EMAIL, PASSWORD
 from profiles.models import Profile, Education, Experience
-from global_variables import linkedin_scraper
+from constants import *
+import logging
+
+logger = logging.getLogger("app")
 
 class LinkedIn:
-    def __init__(self):
-        self.scraper = LinkedInScraper()
+    def __init__(self, linkedin_scraper):
+        self.scraper = linkedin_scraper
         self.scraper.login()
 
     # Checks database for matches, and scrapes more if not enough
@@ -22,28 +23,34 @@ class LinkedIn:
         :param num_profiles: Required number of profiles to fetch and store.
         :return: List of Query objects of the profiles stored in the Profiles database that corresponds to the company and title.
         """
-        # first check in the database to see there are enough num_profiles
-        # then call get_linkedin_urls_google_search, and then pass those urls to the scraper
-        # and then store in the db
 
-        profiles = [p for p in Profile.objects.filter(experience__company__icontains=company, 
-                        experience__title__icontains=title)]
-        exclude_urls = [p.profile_url for p in profiles]
+        # Checks DB first and then scrapes from linkedin
+        logger.info("Looking for profiles that's worked at {} as {}".format(company, title))
+        profiles = set(Profile.objects.filter(experience__company__icontains=company, 
+                                              experience__title__icontains=title))
+
+        exclude_usernames = [p.username for p in profiles]
+        logger.info("Found {} existing profiles in database, looking for {} more."
+            .format(len(profiles), max(0, num_profiles - len(profiles))))
 
         total_num_profiles_collected = len(profiles)
-        iteration = 0 # NOTE: putting a upper limit to how many times we can search for profiles to avoid infinite loop
-        while total_num_profiles_collected < num_profiles and iteration < 3:
-            self.scraper.get_profiles(company, title, (num_profiles - total_num_profiles_collected), exclude_urls)
-            # NOTE: the missing profiles that we fetched from scraper would be added to the DB by now
-            # NOTE: the below query into DB is necessary because we might need to fetch more profiles for the corresponding role
-            # NOTE: this can happen when LinkedIn keyword search suggests people working at the company but not under the role we wnat
-            profiles = [p for p in Profile.objects.filter(experience__company__icontains=company, 
-                        experience__title__icontains=title)] 
-            exclude_urls = [p.profile_url for p in profiles]
-            total_num_profiles_collected = len(profiles)
-            iteration+=1
 
-        return profiles # returning a list of Query objects for now 
+        # Avoid infinite loop
+        iteration = 0
+        while total_num_profiles_collected < num_profiles and iteration < 3:
+            self.scraper.get_profiles(company, title, 
+                (num_profiles - total_num_profiles_collected), exclude_usernames)
+
+            profiles = set(Profile.objects.filter(experience__company__icontains=company, 
+                                                  experience__title__icontains=title))
+            exclude_usernames = [p.username for p in profiles]
+            total_num_profiles_collected = len(profiles)
+
+            iteration += 1
+            logger.info("Iteration {}, total profiles: {}, looking for {} more"
+                .format(iteration, len(profiles), num_profiles - len(profiles)))
+
+        return profiles
 
     # LinkedIn Search is restricted to certain amount of people,
     # Can use google to search instead.

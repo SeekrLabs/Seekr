@@ -3,7 +3,7 @@ from django.conf import settings
 ## Profiles
 WORD_EMBEDDING_LEN = 50
 
-# Educatikon
+# Education
 SCHOOL_VEC_LEN = 1
 EDUCATION_VECTOR_LEN = WORD_EMBEDDING_LEN*3 + SCHOOL_VEC_LEN + 3
 
@@ -14,7 +14,13 @@ PREV_YEARS_LOOKUP = 10
 EXPERIENCE_YEAR_VECTOR_LEN = WORD_EMBEDDING_LEN*NUM_EXPERIENCE_TITLE_WORDS + 1
 EXPERIENCE_VECTOR_LEN = EXPERIENCE_YEAR_VECTOR_LEN * PREV_YEARS_LOOKUP
 
+SKILLS_LEN = 132
 GLOVE_FILE = 'utils/dev_word_embeddings.txt'
 # GLOVE_FILE = 'utils/glove.6B.50d.txt'
 # if settings.DEBUG:
 #     GLOVE_FILE = 'utils/dev_word_embeddings.txt'
+
+HOST_URL = 'ec2-3-82-225-241.compute-1.amazonaws.com/'
+
+BASE_LINKEDIN_USER_URL = 'https://www.linkedin.com/in/'
+STOCK_IMAGE_URL = 'https://blog.herzing.ca/hubfs/becoming%20a%20programmer%20analyst%20lead-1.jpg'

@@ -5,6 +5,9 @@ from datetime import date, timedelta
 import datetime
 from .models import Posting
 import sys
+import logging
+
+logger = logging.getLogger("app")
 
 def repeat():
     indeed = IndeedIngestion(ca_locations=['toronto', 'vancouver', 'montreal'],
@@ -15,9 +18,9 @@ def repeat():
     
     while True:
         seconds_til_midnight = time_until_end_of_day().seconds
-        print("Sleeping for %d seconds." % seconds_til_midnight)
+        logger.info("Sleeping for %d seconds." % seconds_til_midnight)
         time.sleep(seconds_til_midnight)
-        print('Starting Indeed ingestion.')
+        logger.info('Starting Indeed ingestion.')
         indeed.ingest_jobs(1)
         
 
@@ -63,19 +66,19 @@ class IndeedIngestion:
             url = start_url + '&start=' + str(page_num * 50)
             page_num += 1
 
-            print('Issuing GET: ' + url)
+            logger.info('Issuing GET: ' + url)
             search_result = requests.get(url)
 
             if search_result.status_code != 200:
-                print("GET Failed, Status Code {}".format(search_result.status_code))
+                logger.error("GET Failed, Status Code {}".format(search_result.status_code))
                 continue
 
-            print('GET Success, Parsing...')
+            logger.info('GET Success, Parsing...')
             search_soup = BeautifulSoup(search_result.text, 'html.parser')
 
-            print('Finding individual job postings...')
+            logger.info('Finding individual job postings...')
             posting_soups = search_soup.find_all('div', {'class': 'jobsearch-SerpJobCard'})
-            print('Found ' + str(len(posting_soups)) + ' ad cards.')
+            logger.info('Found ' + str(len(posting_soups)) + ' ad cards.')
 
             postings = []
             for posting_soup in posting_soups:
@@ -88,22 +91,28 @@ class IndeedIngestion:
             
             existing_postings = Posting.objects.filter(pk__in=[p.id for p in postings])
             num_existing_postings = len(existing_postings)
-            print("Length of existing postings: {}".format(num_existing_postings))
+            logger.info("Length of existing postings: {}".format(num_existing_postings))
 
             existing_postings_id = [p.id for p in existing_postings]
 
             if num_existing_postings > 20:
                 posting_in_range = False
             
-            postings = [p for p in postings if p.id not in existing_postings_id]
-            print("Length of about to be commited postings: {}".format(len(postings)))
-            Posting.objects.bulk_create(postings)
+            filtered_postings = []
+            for p in postings:
+                if p.id not in existing_postings_id:
+                    if p.generate_vector(10):
+                        filtered_postings.append(p)
+                    
+
+            logger.info("Length of about to be commited postings: {}".format(len(filtered_postings)))
+            Posting.objects.bulk_create(filtered_postings)
 
             if page_num == 19:
                 posting_in_range = False
                 
             if not posting_in_range:
-                print("Stopping Ingestion.")
+                logger.info("Stopping Ingestion.")
                 
 
 class IndeedJobAd:
@@ -136,13 +145,13 @@ class IndeedJobAd:
                     +self.city+'-'+str(self.date_posted)
             ).lower().replace(' ', '_')
 
-    def print(self):
+    def log(self):
         if self.valid:
             location = self.city + ', ' + self.state + ' ' + self.country
-            print('{:39}{:24}{:24}{} {:70}'.format(self.title[:35], self.company[:20],
+            logger.info('{:39}{:24}{:24}{} {:70}'.format(self.title[:35], self.company[:20],
                     location, self.date_posted, self.url[:70]))
         else:
-            print("Invalid")
+            logger.warning("Invalid")
 
     def to_model(self):
         if self.valid:
@@ -177,12 +186,12 @@ class IndeedJobAd:
                 try:
                     self.state = self.location.split(',')[1].split()[0]
                 except:
-                    print('no state ' + self.location + ' ' + self.url + '\n\n\n\n\n\n')
+                    logger.warning('no state ' + self.location + ' ' + self.url + '\n\n\n\n\n\n')
                     return False
                 return True
             
             else:
-                print(url)
+                logger.warning('Could not find enough information {}'.format(url))
 
         return False
 
@@ -190,9 +199,9 @@ class IndeedJobAd:
         if self.url:
             job_url = self.url
 
-            print('Issuing GET: ' + job_url)
+            logger.info('Issuing GET: ' + job_url)
             job_response = requests.get(job_url)
-            print('GET Success, Parsing...')
+            logger.info('GET Success, Parsing...')
 
             specific_job_soup = BeautifulSoup(job_response.text, 'html.parser')
             description = self.find_element_from_soup(specific_job_soup,
@@ -215,5 +224,5 @@ class IndeedJobAd:
         spec = self.SOUP_ID[spec_name]
         result = soup.find(spec['el'], {spec['tag'], spec['attr']})
         if not result:
-            print("Could not find {}".format(spec_name))
+            logger.warning("Could not find {}".format(spec_name))
         return result
