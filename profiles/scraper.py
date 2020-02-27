@@ -13,11 +13,7 @@ import os
 from datetime import date, datetime
 from .models import Profile, Experience, Education
 import re
-<<<<<<< HEAD
-import requests
-=======
 from utils.utils import random_sleep
->>>>>>> 9edb1e0e9d7c7ea1ad422e47a2dc5e0ba61bbf31
 
 logger = logging.getLogger("app")
 
@@ -25,9 +21,7 @@ POLL_FREQUENCY = 0.1
 WAIT_TIMEOUT = 15
 WINDOW_SIZE = 800
 LINKEDIN_EMAIL = os.environ['LINKEDIN_EMAIL']
-LINKEDIN_EMAIL = "joyliu290@hotmail.com"
 LINKEDIN_PASSWORD = os.environ['LINKEDIN_PASSWORD']
-LINKEDIN_PASSWORD = "MagicMusic888!"
 
 class SeleniumScraper:
     xpaths = {}
