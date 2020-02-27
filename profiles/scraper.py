@@ -10,6 +10,7 @@ import os
 from datetime import date, datetime
 from .models import Profile, Experience, Education
 import re
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,9 @@ POLL_FREQUENCY = 0.1
 WAIT_TIMEOUT = 20
 WINDOW_SIZE = 800
 LINKEDIN_EMAIL = os.environ['LINKEDIN_EMAIL']
+LINKEDIN_EMAIL = "joyliu290@hotmail.com"
 LINKEDIN_PASSWORD = os.environ['LINKEDIN_PASSWORD']
+LINKEDIN_PASSWORD = "MagicMusic888!"
 
 class SeleniumScraper:
     xpaths = {}
@@ -135,8 +138,8 @@ class SeleniumScraper:
             except (TimeoutException, StaleElementReferenceException, WebDriverException) as e:
                 if logs:
                     return None
-                    #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Couldn't find XPATH: {xpath_key} ")
+                    logger.warning(f"Error: {e} ")
                 return None
 
         try:
@@ -173,9 +176,11 @@ class LinkedInScraper(SeleniumScraper):
         'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
         'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
         'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
+        'MULTI_EXPERIENCES': '//li[@class="pv-entity__position-group-role-item"]',
         'TITLE': './/h3[@class="t-16 t-black t-bold"]',
         'COMPANY': './/p[@class="pv-entity__secondary-title t-14 t-black t-normal"]',
-        'COMPANY_SEQUENTIAL': './/h3[@class="t-16 t-black t-bold"]',
+        'COMPANY_MULTI_EXPERIENCES': './/h3[@class="t-16 t-black t-bold"]',
+        'TITLE_MULTI_EXPERIENCES': './/h3[@class="t-14 t-black t-bold"]',
         'DATE_RANGE': './/h4[@class="pv-entity__date-range t-14 t-black--light t-normal"]',
         'JOB_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-black t-normal inline-show-more-text inline-show-more-text--is-collapsed ember-view"]',
         'EDUCATION_MULTIPLE': '//*[@class="pv-profile-section__sortable-card-item pv-education-entity pv-profile-section__card-item ember-view"]',
@@ -197,6 +202,13 @@ class LinkedInScraper(SeleniumScraper):
         time.sleep(5)
         self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
         self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
+
+    def check_invalid_profile(self, profile_url):
+        self.visit(profile_url)
+        time.sleep(2)
+        if self.d.current_url != profile_url:
+            return False
+        return True
 
     """
     :param query: String that queries the people tab of linkedin
@@ -306,8 +318,9 @@ class LinkedInScraper(SeleniumScraper):
         :param profile_url: Person's profile URL that we will be extracting information from.
         :return: True if we have stored the profile into DB, False if we did not store.
         """
-        
-        self.visit(profile_url)
+        if self.check_invalid_profile(profile_url) == False:
+            return False
+
         name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
         location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
         self.scroll_to_bottom(1200)
@@ -390,7 +403,6 @@ class LinkedInScraper(SeleniumScraper):
                     end_date=experience_end_date,
                     is_current=is_experience_current
             )
-
             profile.save()
             
         return True
@@ -402,13 +414,33 @@ class LinkedInScraper(SeleniumScraper):
         :return: List of dictionaries containing information about each experience. Return None if no experience.
         """
         experiences = []
-        exps = self.get_multiple_by_xpath_or_none('EXPERIENCES')
+        exps = self.get_multiple_by_xpath_or_none('EXPERIENCES', wait=True)
         if not exps:
             return None
 
         experience_with_incorrect_company= 0
         for exp in exps:
             temp = {}
+            # checking if this experience is "multiple experience under 1 company"
+            # since for multiple experiences, the fields are slightly different than single experience
+            # we distinguish these experiences by checking if "Company Name" exists in the company name field
+    
+            company_name = self.element_get_text_by_xpath_or_none(exp, 'COMPANY_MULTI_EXPERIENCES')
+            if "Company Name" in company_name and not self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES'): # this means this section has multiple experiences in 1 company
+                multi_exps = self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES')
+                # need to iterate thru the li elements of these experiences and add into temp (make sure temp['company'] is there for all experiences
+                for experience in multi_exps:
+                    temp['company'] = company_name.split('\n')[1]
+                    title = self.element_get_text_by_xpath_or_none(
+                        experience, 'TITLE_MULTI_EXPERIENCES') if self.element_get_text_by_xpath_or_none(experience, 'TITLE_MULTI_EXPERIENCES') is not None else ""
+                    temp['title'] = title.split('\n')[1]
+                    temp['dates'] = self.element_get_text_by_xpath_or_none(
+                        experience, 'DATE_RANGE').split('\n')[1] if self.element_get_text_by_xpath_or_none(experience, 'DATE_RANGE') is not None else ""
+
+                    if temp['company'].lower() != company.lower():
+                        experience_with_incorrect_company +=1
+                    experiences.append(temp)
+
             temp['dates'] = self.element_get_text_by_xpath_or_none(
                     exp, 'DATE_RANGE') if self.element_get_text_by_xpath_or_none(exp, 'DATE_RANGE') is not None else ""
             temp['title'] = self.element_get_text_by_xpath_or_none(
@@ -417,7 +449,8 @@ class LinkedInScraper(SeleniumScraper):
                     exp, 'COMPANY') if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
             temp['description'] = self.element_get_text_by_xpath_or_none(
                     exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
-            #NOTE: Counting number of companies that are different than the company we're looking for
+           
+            # NOTE: Counting number of companies that are different than the company we're looking for
             if temp['company'].lower() != company.lower():
                 experience_with_incorrect_company +=1
             experiences.append(temp)
@@ -425,11 +458,6 @@ class LinkedInScraper(SeleniumScraper):
         # Handling the case when the user doesn't have any experience in the desired company (when user did not update LinkedIn yet):
         if len(experiences) == experience_with_incorrect_company:
             return None
-
-        # NOTE: after all experiences have been scraped, check if there's an experience that match to the desired company and role:
-        # for experience in experiences:
-            # if experience['company'].lower() == company.lower() and role.lower() in experience['title'].lower(): 
-            #     return experiences
 
         return experiences
 
