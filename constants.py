@@ -22,5 +22,5 @@ GLOVE_FILE = 'utils/dev_word_embeddings.txt'
 
 HOST_URL = 'ec2-3-82-225-241.compute-1.amazonaws.com/'
 
-BASE_LINKEDIN_USER_URL = 'https://linkedin.com/in/'
+BASE_LINKEDIN_USER_URL = 'https://www.linkedin.com/in/'
 STOCK_IMAGE_URL = 'https://blog.herzing.ca/hubfs/becoming%20a%20programmer%20analyst%20lead-1.jpg'

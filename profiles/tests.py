@@ -9,17 +9,7 @@ from datetime import date, datetime
 class ProfileTestCase(TestCase):
     def setUp(self):
         self.p = Profile()
-
-    def test_prod(self):
-        l = LinkedInScraper()
         
-
-    def test_false(self):
-        linkedin = LinkedInScraper()
-        linkedin.login()
-        print(linkedin.get_profile_by_url("https://www.linkedin.com/in/waltonwang"))
-        linkedin.quit()
-
     def test_gpa_extractor(self):
         grades = [
             "4",
@@ -47,8 +37,8 @@ class ProfileTestCase(TestCase):
 
     def test_linkedin_scraper_by_url(self):
         linkedin = LinkedInScraper()
-        linkedin.login() # perhaps don't need to do linkedin login, just directly visit the page
-        print(linkedin.get_profile_by_url("https://www.linkedin.com/in/joyliu3"))
+        linkedin.login()
+        linkedin.get_profile_by_url("https://www.linkedin.com/in/joyliu3", 'Microsoft', 'Software')
         #linkedin.quit()
 
     # def test_profile_database(self):

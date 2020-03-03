@@ -8,12 +8,12 @@ from .schools import School
 
 class Profile(models.Model):
     VECTOR_LEN = SKILLS_LEN + EDUCATION_VECTOR_LEN + EXPERIENCE_VECTOR_LEN
-
+    
+    username = models.CharField(max_length=100, default = "", primary_key=True)
     name = models.CharField(max_length=128, default='', blank=True)
     location = models.CharField(max_length=64, blank=True)
-    profile_url = models.CharField(max_length = 200, default = "")
 
-    def username_validator(username):
+    def username_validator(username: str):
         for c in username:
             if not c.isalnum():
                 print("Invalid username format")
@@ -23,14 +23,18 @@ class Profile(models.Model):
             return False
         return True
     
+    def url_to_username(url: str):
+        if url[-1] == '/':
+            return url.split('/')[-2]
+        return url.split('/')[-1]
+    
     def to_vector(self, profile_simulation_date):
-        """ 
-        Returns a numerical representation of profile
+        """Returns a numerical representation of profile
   
         Parameters: 
-            profile_simulation_date (datetime.date): The date at which the profile is simulated.
-                    A component represents years since graduation, so a profile vector is
-                    dependent on the profile simulation date.
+            profile_simulation_date (datetime.date): The date at which the profile is 
+                simulated.A component represents years since graduation, so a profile 
+                vector is dependent on the profile simulation date.
           
         Returns:
             List (int): representing the profile
@@ -63,6 +67,17 @@ class Profile(models.Model):
                 return exp.start_date
         return False
 
+    def __str__(self):
+        base = "{:20} {:20} {:30}\n".format(self.name, self.username, self.location)
+        base += "Education:\n"
+        for edu in self.education_set.all():
+            base += "\t" + str(edu) + "\n"
+        base += "Experience:\n"
+        for exp in self.experience_set.all():
+            base += "\t" + str(exp) + "\n"
+        return base
+
+
 
 class Experience(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
@@ -73,6 +88,10 @@ class Experience(models.Model):
     end_date = models.DateField(null=True, blank=True)
     is_current = models.BooleanField()
 
+    def __str__(self):
+        return "< {:50}, {:50}, Start: {} >".format(
+            self.company, self.title, self.start_date.strftime("%Y-%m-%d"))
+
 class Education(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     school_name = models.CharField(max_length=128, default='')  
@@ -82,11 +101,10 @@ class Education(models.Model):
     gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0, blank=True, null=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    is_current = models.BooleanField()
+    is_current = models.BooleanField(null=True)
     
     def to_vector(self, profile_simulation_date):
-        """ 
-        Returns a numerical representation of education
+        """Returns a numerical representation of education
   
         Parameters: 
             profile_simulation_date (datetime.date): The date at which the profile is simulated.
@@ -105,3 +123,7 @@ class Education(models.Model):
         field_of_study = glove.get_string_embedding(self.field_of_study, 3)
 
         return school_vec + gpa + years_to_complete_degree + years_since_graduation + field_of_study
+
+    def __str__(self):
+        return "< {:50}, {:50}, Start: {} >".format(
+            self.school_name, self.field_of_study, self.start_date.strftime("%Y-%m-%d"))
