@@ -67,10 +67,6 @@ class Posting(models.Model):
         return self.image_url
 
     def generate_image(self):
-        # title = self.tile to access parameters
-        # each posting has company logo, job title, experience level, location, and posting link
-        #img = Image.new('RGB', (570, 430), color = (255, 255, 255))
-        
         # use URL of logo image and get it
         # response = requests.get(self.image_url)
 
@@ -106,7 +102,7 @@ class Posting(models.Model):
 
         # Drawing text for job posting information 
         # draw text, Company Title 
-        titlelines = textwrap.wrap(position, width = 20)
+        titlelines = textwrap.wrap(self.title, width = 20)
         start_height = top_margin
         for titleline in titlelines:
             width, height = fnt_title.getsize(titleline)
@@ -143,9 +139,11 @@ class Posting(models.Model):
         Returns:
             image_url (string): a publically access url string
         """
+        s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
 
 
         pass
 
     def __str__(self):
-        return "%s %s %s" % (self.company, self.title, self.date_posted)
+        return '{:39}{:24}{:24}{}\t{:70}'.format(self.title[:35], self.company[:20],
+                self.city[:20], self.date_posted, self.url[:70])
