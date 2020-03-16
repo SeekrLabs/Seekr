@@ -15,7 +15,7 @@ from .models import Profile, Experience, Education
 import re
 from utils.utils import random_sleep
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 POLL_FREQUENCY = 0.1
 WAIT_TIMEOUT = 15
@@ -28,7 +28,9 @@ class SeleniumScraper:
     def __init__(self, headless=False):
         if headless:
             options = webdriver.ChromeOptions()
-            options.add_argument('headless')
+            options.add_argument('--headless')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
             driver = webdriver.Chrome(chrome_options=options)
         else:
             driver = webdriver.Chrome()
@@ -60,9 +62,8 @@ class SeleniumScraper:
         except (TimeoutException, StaleElementReferenceException,
                 WebDriverException, NoSuchElementException) as e:
             if logs:
-                return None
-                #logger.warning(f"XPATH: {xpath_key} ")
-                #logger.warning(f"Error: {e} ")
+                logger.warning(f"XPATH: {xpath_key} ")
+                logger.warning(f"Error: {e} ")
             return None
 
     def scroll_to_bottom(self, body_height):
@@ -116,9 +117,8 @@ class SeleniumScraper:
 
         except (TimeoutException, StaleElementReferenceException, WebDriverException, NoSuchElementException) as e:
             if logs:
-                return None
-                #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                #logger.warning(f"Error: {e} ")
+                logger.warning(f"Couldn't find XPATH: {xpath_key} ")
+                logger.warning(f"Error: {e} ")
             return None
 
     def get_by_xpath_text_or_none(self, xpath_key, wait=False, logs=True):
@@ -143,9 +143,8 @@ class SeleniumScraper:
                 self.wait_get_by_xpath(xpath_key)
             except (TimeoutException, StaleElementReferenceException, WebDriverException) as e:
                 if logs:
-                    return None
-                    #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Couldn't find XPATH: {xpath_key} ")
+                    logger.warning(f"Error: {e} ")
                 return None
 
         try:
@@ -153,13 +152,11 @@ class SeleniumScraper:
         except:
             if logs:
                 if wait:
-                    return None
-                    #logger.warning(f"Found XPATH: {xpath_key}, couldn't find all elements.")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Found XPATH: {xpath_key}, couldn't find all elements.")
+                    logger.warning(f"Error: {e} ")
                 else:
-                    return None
-                    #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Couldn't find XPATH: {xpath_key} ")
+                    logger.warning(f"Error: {e} ")
             return None
 
     def get_multiple_by_xpath_text_or_none(self, xpath_key, wait=False, logs=True):
@@ -197,7 +194,8 @@ class LinkedInScraper(SeleniumScraper):
         'SCHOOL_DATE_RANGE': './/p[@class="pv-entity__dates t-14 t-black--light t-normal"]',
         'EDUCATION_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-normal mt4"]',
         'SHOW_MORE': './/button[@class="pv-profile-section__card-action-bar pv-skills-section__additional-skills artdeco-container-card-action-bar artdeco-button artdeco-button--tertiary artdeco-button--3 artdeco-button--fluid"]',
-        'FETCH_PROFILE_FROM_SEARCH': '//a[contains(@class, "search-result__result-link ember-view")]'
+        'FETCH_PROFILE_FROM_SEARCH': '//a[contains(@class, "search-result__result-link ember-view")]',
+        'PIN_VERIFY': '//*[@id="input__email_verification_pin"]',
     }
 
     def login(self):
@@ -212,8 +210,10 @@ class LinkedInScraper(SeleniumScraper):
         if password:
             password.send_keys(LINKEDIN_PASSWORD + '\n')
         logger.info("Found input boxes, waiting for authentication...")
-        
 
+    def pin_verify(self, pin):
+        pin_box = self.get_by_xpath_or_none('PIN_VERIFY', wait=True)
+        pin_box.send_keys(pin + '\n')
 
     def get_profile_urls(self, company, role, page_num, exclude_usernames=[]):
         logger.info("Looking for {} roles at {} on the {} page...".format(
@@ -250,8 +250,11 @@ class LinkedInScraper(SeleniumScraper):
         profiles = []
 
         while num_collected < num_profiles and page_num < 10:
+            # LinkedIn Search
             profile_urls = self.get_profile_urls(company, 
                 role, page_num, exclude_usernames)
+
+            # profile_urls = GoogleSearch.get_linkedin_profiles(query, page_num, start_page=start_page)
 
             for profile_url in profile_urls:
                 profile = self.get_profile_by_url(profile_url, company, role)
@@ -276,16 +279,21 @@ class LinkedInScraper(SeleniumScraper):
         If the profile doesn't have experience or education fields we need, then do not store into DB.
         :param profile_url: Person's profile URL that we will be extracting information from.
         :return: True if we have stored the profile into DB, False if we did not store.
-        """
+        """ 
         username = Profile.url_to_username(profile_url)
+
+        p = Profile.objects.filter(pk=username).first()
+        if p:
+            logger.info("A profile with username {} exists in the database.".format(
+                username))
+            return p
 
         self.visit(profile_url)
         self.scroll_to_bottom(1500)
-
         name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
         location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
-        
         experiences = self.parse_profile_experiences(company, role)
+
         if experiences is None:
             logger.info("{} has no experience.".format(name))
             return False
@@ -293,12 +301,8 @@ class LinkedInScraper(SeleniumScraper):
         educations = self.parse_profile_education()
         gpa = None
 
-        profile, created = Profile.objects.get_or_create(name=name, location=location, 
-            username=username)
-        
-        if not created:
-            logger.info("A profile with username {} exists in the database.".format(
-                username))
+        profile = Profile.objects.create(name=name, location=location, username=username)
+        logger.info("Successfully created {}'s profile".format(username))
         
         education_list = []
         for education in educations:
@@ -389,10 +393,10 @@ class LinkedInScraper(SeleniumScraper):
         """
         experiences = []
         exps = self.get_multiple_by_xpath_or_none('EXPERIENCES')
+
         if not exps:
             return None
 
-        experience_with_incorrect_company = 0
         for exp in exps:
             temp = {}
             temp['dates'] = self.element_get_text_by_xpath_or_none(
@@ -403,19 +407,7 @@ class LinkedInScraper(SeleniumScraper):
                     exp, 'COMPANY') if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
             temp['description'] = self.element_get_text_by_xpath_or_none(
                     exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
-            #NOTE: Counting number of companies that are different than the company we're looking for
-            if temp['company'].lower() != company.lower():
-                experience_with_incorrect_company += 1
             experiences.append(temp)
-
-        # Handling the case when the user doesn't have any experience in the desired company (when user did not update LinkedIn yet):
-        if len(experiences) == experience_with_incorrect_company:
-            return None
-
-        # NOTE: after all experiences have been scraped, check if there's an experience that match to the desired company and role:
-        # for experience in experiences:
-            # if experience['company'].lower() == company.lower() and role.lower() in experience['title'].lower(): 
-            #     return experiences
 
         return experiences
 

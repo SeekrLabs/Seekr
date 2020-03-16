@@ -6,15 +6,14 @@ import datetime
 from .models import Posting
 import sys
 import logging
+from constants import CANADA_LOCATIONS, US_LOCATIONS, TITLES
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 def repeat():
-    indeed = IndeedIngestion(ca_locations=['toronto', 'vancouver', 'montreal'],
-            us_locations=['new york', 'seattle', 'san francisco', 'chicago'],
-            titles = ['software', 'hardware', 'analyst'])
-    num_init_pages = int(sys.argv[-1])
-    indeed.ingest_jobs(num_init_pages)
+    indeed = IndeedIngestion(ca_locations=CANADA_LOCATIONS,
+        us_locations=US_LOCATIONS,
+        titles=TITLES)
     
     while True:
         seconds_til_midnight = time_until_end_of_day().seconds
@@ -108,7 +107,7 @@ class IndeedIngestion:
             logger.info("Length of about to be commited postings: {}".format(len(filtered_postings)))
             Posting.objects.bulk_create(filtered_postings)
 
-            if page_num == 19:
+            if page_num == 20:
                 posting_in_range = False
                 
             if not posting_in_range:
@@ -145,7 +144,7 @@ class IndeedJobAd:
                     +self.city+'-'+str(self.date_posted)
             ).lower().replace(' ', '_')
 
-    def log(self):
+    def print(self):
         if self.valid:
             location = self.city + ', ' + self.state + ' ' + self.country
             logger.info('{:39}{:24}{:24}{} {:70}'.format(self.title[:35], self.company[:20],

@@ -7,12 +7,13 @@ from global_variables import linkedin_scraper
 from .chatfuel import *
 from postings.models import Posting
 import json
+from profiles.search import GoogleSearch
 from constants import *
 import logging
 from django.db import IntegrityError
 
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 def create_messenger_user(request):
     """Creates a user
@@ -46,7 +47,7 @@ def create_messenger_user(request):
     
     response = ChatfuelResponse()
     response_dict = response.to_dict()
-    logger.info('Response: ' + json.dumps(response_dict, indent=4, sort_keys=True))
+    logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
     return JsonResponse(response_dict)
 
 
@@ -56,33 +57,49 @@ def confirm_linkedin_profile(request):
     Returns:
         JsonResponse: Found message if user found, else redirects to querying input
     """
-    
-    data = json.loads(request.body)
-    logger.info(json.dumps(data, indent=4, sort_keys=True))
+    try:
+        data = json.loads(request.body)
+        logger.info(json.dumps(data, indent=4, sort_keys=True))
 
-    messenger_id = data['messenger_id']
-    username = data['linkedin_username']
+        messenger_id = data['messenger_id']
+        username = data['linkedin_username']
+        if '/' in username:
+            if username.split('/')[-1] == '':
+                username = username.split('/')[-1]
+            else:
+                username = username.split('/')[-2]
+        username = username.lower()
 
-    print("Received data: messenger_id: %s, linkedin_username: %s" \
-            %(messenger_id, username))
-
-    response = ChatfuelResponse(messages=[])
-    profile_url = 'https://www.linkedin.com/in/' + username
-
-    if Profile.username_validator(username) \
-            and linkedin_scraper.get_profile_by_url(profile_url):
         
-        message = TextMessage("Great! We've found you.")    
-        response.add_message(message)
-        response.add_redirect("Menu")
-            
-    else:
-        response.add_redirect("VerifyLinkedIn")
+        response = ChatfuelResponse(messages=[])
+        profile_url = 'https://www.linkedin.com/in/' + username
+        found_profile = False
+
+        if Profile.username_validator(username):
+            p = linkedin_scraper.get_profile_by_url(profile_url)
+            if p:
+                message1 = TextMessage("Great! We've found you.")
+                message2 = TextMessage(p.to_message())
+                message3 = TextMessage("Now that I have your profile,")
+
+                response.add_message(message1)
+                response.add_message(message2)
+                response.add_message(message3)
+                response.add_redirect("Menu")
+                found_profile = True
+                
+        if not found_profile:
+            message = TextMessage("We couldn't find anyone with that username...")    
+            response.add_message(message)
+            response.add_redirect("AskLinkedIn")
         
-    
-    response_dict = response.to_dict()
-    logger.info('Response: ' + json.dumps(response_dict, indent=4, sort_keys=True))
-    return JsonResponse(response_dict)
+        response_dict = response.to_dict()
+        logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
+        return JsonResponse(response_dict)
+
+    except:
+        logger.error("", exc_info=True)
+        return send_error_message()
 
 
 def save_posting(request):
@@ -106,7 +123,6 @@ def save_posting(request):
 
         except IntegrityError as e:
             if 'unique constraint' in e.args[0].lower():
-                logger.error("hi")
                 response.add_message(TextMessage("You've already saved this job."))
             else:
                 logging.error("Saving posting error: {}".format(e))
@@ -119,7 +135,7 @@ def save_posting(request):
         response_dict = response.to_dict()
         response_dict['status'] = 'success'
 
-        logger.info('Response: ' + json.dumps(response_dict, indent=4, sort_keys=True))
+        logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
         return JsonResponse(response_dict)
 
     except:
@@ -178,7 +194,7 @@ def remove_saved_posting(request):
         response_dict = response.to_dict()
         response_dict['status'] = 'success'
 
-        logger.info('Response: ' + json.dumps(response_dict, indent=4, sort_keys=True))
+        logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
         return JsonResponse(response_dict)
     except:
 
@@ -235,18 +251,64 @@ def browse_saved_postings(request):
             gallery_message.add_quick_reply(next_page)
 
             prev_page = QuickReply("Prev Page", block_name="BrowseSavedPostings")
-            prev_page.set_attribute("saved_posting_page", max(str(offset-1), 0))
+            prev_page.set_attribute("saved_posting_page", str(max(offset-1, 0)))
             gallery_message.add_quick_reply(prev_page)
 
             
             response.add_message(gallery_message)
         response_dict = response.to_dict()
-        logger.info('Response: ' + json.dumps(response_dict, indent=4, sort_keys=True))
+        logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
         return JsonResponse(response_dict)
 
     except:
         logger.error("", exc_info=True)
         return JsonResponse({'status': 'failure'}, status=500)
+
+
+def suggest_linkedin(request):
+    """Google searchs a user's linkedin profile based on their name 
+
+    Args:
+        request: Messenger request object
+
+    Returns:
+        Json response containing the messages created
+    """
+    try:
+        data = json.loads(request.body)
+        messenger_id = data['messenger_id']
+        user = MessengerUser.objects.get(pk=messenger_id)
+        
+        query = '{} {}'.format(user.first_name, user.last_name)
+        search_res = GoogleSearch.get_linkedin_profiles_simple(query)[:5]
+
+
+        intro_message = TextMessage("Which one of these LinkedIn profiles are you?")
+        gallery_message = GalleryMessage("square")
+        
+        not_me_button = BlockButton("None of them are me...", 'AskLinkedIn')
+        end_message = ButtonMessage("Any of them belong to you?", buttons=[not_me_button])
+
+        for resp in search_res:
+            username = Profile.url_to_username(resp['profile_url'])
+
+            confirm_button = BlockButton('This is me!', 'VerifyLinkedIn')
+            confirm_button.set_attribute("linkedin_username", username)
+
+            gallery_card = GalleryCard("LinkedIn Username: ({})".format(username), 
+                '', resp['picture_url'], buttons=[confirm_button])
+
+            gallery_message.add_card(gallery_card)
+
+        response = ChatfuelResponse(messages=[intro_message, gallery_message, end_message])
+        response_dict = response.to_dict()
+        logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
+        return JsonResponse(response_dict)
+
+    except:
+        logger.error("", exc_info=True)
+        return send_error_message()
+
 
 
 def search_jobs(request):
@@ -295,8 +357,7 @@ def search_jobs(request):
 
         response.add_message(gallery_message)
     response_dict = response.to_dict()
-
-    logger.info('Response: ' + json.dumps(response_dict, indent=4, sort_keys=True))
+    logger.info('Response: ' + json.dumps(response_dict, sort_keys=True))
     return JsonResponse(response_dict)
 
 def get_posting_url(messenger_user_id, posting_id):
@@ -308,7 +369,7 @@ def get_posting_url(messenger_user_id, posting_id):
 
 def send_error_message():
     response = ChatfuelResponse(
-        messages=[TextMessage("An error has occured! Please be paitient "
+        messages=[TextMessage("An error has occured! Please be patient "
                                 "and we'll fix it as soon as possible")])
     response_dict = response.to_dict()
     return JsonResponse(response_dict)

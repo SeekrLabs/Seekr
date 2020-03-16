@@ -15,11 +15,11 @@ class Profile(models.Model):
 
     def username_validator(username: str):
         for c in username:
-            if not c.isalnum():
-                print("Invalid username format")
+            if not c.isalnum() and c != '-':
+                logger.info("Invalid username format")
                 return False
         if len(username) < 3 or len(username) > 100:
-            print("Invalid username format")
+            logger.info("Invalid username format")
             return False
         return True
     
@@ -77,6 +77,15 @@ class Profile(models.Model):
             base += "\t" + str(exp) + "\n"
         return base
 
+    def to_message(self):
+        base = "{} ".format(self.name)
+        base += "Education: "
+        for edu in self.education_set.all():
+            base += edu.to_message() + " "
+        base += "Experience "
+        for exp in self.experience_set.all():
+            base += exp.to_message() + "  "
+        return base
 
 
 class Experience(models.Model):
@@ -89,7 +98,11 @@ class Experience(models.Model):
     is_current = models.BooleanField()
 
     def __str__(self):
-        return "< {:50}, {:50}, Start: {} >".format(
+        return "< {:40}, {:40}, Start: {} >".format(
+            self.company[:38], self.title[:38], self.start_date.strftime("%Y-%m-%d"))
+
+    def to_message(self):
+        return "{}\n{}\nStart: {}".format(
             self.company, self.title, self.start_date.strftime("%Y-%m-%d"))
 
 class Education(models.Model):
@@ -125,5 +138,9 @@ class Education(models.Model):
         return school_vec + gpa + years_to_complete_degree + years_since_graduation + field_of_study
 
     def __str__(self):
-        return "< {:50}, {:50}, Start: {} >".format(
+        return "< {:40}, {:40}, Start: {} >".format(
+            self.school_name[:38], self.field_of_study[:38], self.start_date.strftime("%Y-%m-%d"))
+
+    def to_message(self):
+        return "{}\n{}\nStart: {} ".format(
             self.school_name, self.field_of_study, self.start_date.strftime("%Y-%m-%d"))

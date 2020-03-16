@@ -4,7 +4,7 @@ from .scraper import LinkedInScraper
 import time
 from profiles.models import Profile, Education, Experience
 from datetime import date, datetime
-
+from .search import GoogleSearch
 
 class ProfileTestCase(TestCase):
     def setUp(self):
@@ -40,6 +40,10 @@ class ProfileTestCase(TestCase):
         linkedin.login()
         linkedin.get_profile_by_url("https://www.linkedin.com/in/joyliu3", 'Microsoft', 'Software')
         #linkedin.quit()
+
+    def test_google_search(self):
+        res = GoogleSearch().get_linkedin_profiles_simple("google", "software engineer", 0)
+        assert(len(res) == 10)
 
     # def test_profile_database(self):
     #     test_profile = Profile(name = "Joy Liu", location = "Toronto")

@@ -6,7 +6,7 @@ from profiles.models import Profile, Education, Experience
 from constants import *
 import logging
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 class LinkedIn:
     def __init__(self, linkedin_scraper):
@@ -51,26 +51,3 @@ class LinkedIn:
                 .format(iteration, len(profiles), num_profiles - len(profiles)))
 
         return profiles
-
-    # LinkedIn Search is restricted to certain amount of people,
-    # Can use google to search instead.
-    def get_linkedin_urls_google_search(self, company, title):
-        """
-        Using Google Search as another source to fetch profiles.
-        :param company: Company name we're searching.
-        :param role: Role we're searching for.
-        :return: List of urls that were fetched from Google Search API.
-        """
-        url = "https://www.googleapis.com/customsearch/v1?key=&cx=&q=" + company + title
-
-        search_result = urllib.request.urlopen(url)
-        data = search_result.read()
-        encoded_data = search_result.info().get_content_charset('utf-8')
-        resulting_data = json.loads(data.decode(encoded_data))
-
-        url_list = []
-
-        for results in resulting_data["items"]:
-            url_lst.append(results["link"])
-
-        return url_list

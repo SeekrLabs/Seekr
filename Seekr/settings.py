@@ -85,15 +85,14 @@ DATABASES_AVAILABLE = {
     },
     'dev': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'data/db.sqlite3'),
     }
 }
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-database = os.environ.get('SEEKR_DATABASE', 'dev')
 DATABASES = {
-    'default': DATABASES_AVAILABLE[database]
+    'default': DATABASES_AVAILABLE['dev'] # For cost reasons, change to MySQL if high traffic
 }
 
 
@@ -148,14 +147,15 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'console',
         },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'data/server.log',
+            'formatter': 'console'
+        },
     },
     'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
         'app': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'DEBUG',
         },
     },
