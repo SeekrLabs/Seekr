@@ -66,6 +66,28 @@ class SeleniumScraper:
                 logger.warning(f"Error: {e} ")
             return None
 
+    def element_get_multiple_by_xpath_or_none(self, el, xpath_key, logs=True):
+        """
+        Get a web element through the xpath string passed.
+        If a TimeoutException is raised the else_case is called and None
+        is returned.
+        :param driver: Selenium Webdriver to use.
+        :param xpath: String containing the xpath.
+        :param wait_timeout: optional amounts of seconds before
+        TimeoutException is raised, default WAIT_TIMEOUT is used otherwise.
+        :param logs: optional, prints a status message to stdout if an
+        exception occures.
+        :return: The web element or None if nothing found.
+        """
+        try:
+            return el.find_elements_by_xpath(self.xpaths[xpath_key])
+        except (TimeoutException, StaleElementReferenceException,
+                WebDriverException, NoSuchElementException) as e:
+            if logs:
+                logger.warning(f"XPATH: {xpath_key} ")
+                logger.warning(f"Error: {e} ")
+            return None
+
     def scroll_to_bottom(self, body_height):
         top = 0
         while top < body_height:
@@ -78,6 +100,13 @@ class SeleniumScraper:
         element = self.element_get_by_xpath_or_none(el, xpath_key, logs)
         if not element:
             return None
+        else:
+            return element.text
+
+    def element_get_text_by_xpath_or_empty_string(self, el, xpath_key, logs=True):
+        element = self.element_get_by_xpath_or_none(el, xpath_key, logs)
+        if not element:
+            return ""
         else:
             return element.text
 
@@ -180,9 +209,11 @@ class LinkedInScraper(SeleniumScraper):
         'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
         'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
         'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
+        'MULTI_ROLES_LI': './/li[@class="pv-entity__position-group-role-item"]',
         'TITLE': './/h3[@class="t-16 t-black t-bold"]',
         'COMPANY': './/p[@class="pv-entity__secondary-title t-14 t-black t-normal"]',
-        'COMPANY_SEQUENTIAL': './/h3[@class="t-16 t-black t-bold"]',
+        'COMPANY_MULTI_EXPERIENCES': './/h3[@class="t-16 t-black t-bold"]',
+        'TITLE_MULTI_EXPERIENCES': './/h3[@class="t-14 t-black t-bold"]',
         'DATE_RANGE': './/h4[@class="pv-entity__date-range t-14 t-black--light t-normal"]',
         'JOB_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-black t-normal inline-show-more-text inline-show-more-text--is-collapsed ember-view"]',
         'EDUCATION_MULTIPLE': '//*[@class="pv-profile-section__sortable-card-item pv-education-entity pv-profile-section__card-item ember-view"]',
@@ -398,16 +429,32 @@ class LinkedInScraper(SeleniumScraper):
             return None
 
         for exp in exps:
-            temp = {}
-            temp['dates'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'DATE_RANGE') if self.element_get_text_by_xpath_or_none(exp, 'DATE_RANGE') is not None else ""
-            temp['title'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'TITLE') if self.element_get_text_by_xpath_or_none(exp, 'TITLE') is not None else ""
-            temp['company'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'COMPANY') if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
-            temp['description'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
-            experiences.append(temp)
+            # Multiple roles in 1 company
+            mult_roles_li = self.element_get_multiple_by_xpath_or_none(exp, 'MULTI_ROLES_LI')
+            if mult_roles_li:
+                try:
+                    company = self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY_MULTI_EXPERIENCES').split('\n')[1]
+                except:
+                    print("\n\nerror\n")
+                    print(self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY'))
+                for role in mult_roles_li:
+                    temp = {
+                        'company': company,
+                        'title': self.element_get_text_by_xpath_or_empty_string(role,
+                            'TITLE_MULTI_EXPERIENCES').split('\n')[1],
+                        'dates': self.element_get_text_by_xpath_or_empty_string(role, 'DATE_RANGE'),
+                        'description': self.element_get_text_by_xpath_or_empty_string(exp, 'JOB_DESCRIPTION')
+                    }
+                    print(temp)
+                    experiences.append(temp)
+            else:
+                temp = {}
+                temp['dates'] = self.element_get_text_by_xpath_or_empty_string(exp, 'DATE_RANGE')
+                temp['title'] = self.element_get_text_by_xpath_or_empty_string(exp, 'TITLE')
+                temp['company'] = self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY')
+                temp['description'] = self.element_get_text_by_xpath_or_empty_string(exp, 'JOB_DESCRIPTION')
+                print(temp)
+                experiences.append(temp)
 
         return experiences
 
