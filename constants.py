@@ -15,8 +15,8 @@ EXPERIENCE_YEAR_VECTOR_LEN = WORD_EMBEDDING_LEN*NUM_EXPERIENCE_TITLE_WORDS + 1
 EXPERIENCE_VECTOR_LEN = EXPERIENCE_YEAR_VECTOR_LEN * PREV_YEARS_LOOKUP
 
 SKILLS_LEN = 132
-# GLOVE_FILE = 'data/dev_word_embeddings.txt'
-GLOVE_FILE = 'data/dev_word_embeddings.txt'
+
+GLOVE_FILE = 'data/filtered.glove.6B.50d.txt'
 if settings.DEBUG:
     GLOVE_FILE = 'data/dev_word_embeddings.txt'
 
