@@ -78,6 +78,10 @@ def confirm_linkedin_profile(request):
         if Profile.username_validator(username):
             p = linkedin_scraper.get_profile_by_url(profile_url)
             if p:
+                m_user = MessengerUser.objects.get(pk=messenger_id)
+                m_user.profile = p
+                m_user.save()
+                
                 message1 = TextMessage("Great! We've found you.")
                 message2 = TextMessage(p.to_message())
                 message3 = TextMessage("Now that I have your profile,")

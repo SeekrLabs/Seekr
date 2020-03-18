@@ -4,6 +4,9 @@ from PIL import Image, ImageDraw
 from global_variables import linkedin
 import numpy as np
 from profiles.models import Profile
+import logging
+
+logger = logging.getLogger('app')
 
 class Posting(models.Model):
     id = models.CharField(max_length=64, primary_key=True, editable=False)
@@ -22,7 +25,7 @@ class Posting(models.Model):
     image_url = models.URLField(blank=True)
 
     search_title = models.CharField(max_length=16, blank=True)
-    num_employees = models.IntegerField(null=True)
+    num_employees = models.IntegerField(default=-1)
 
     # logo = models.URLField(default='')
     
@@ -36,8 +39,8 @@ class Posting(models.Model):
             (boolean): if generation was successful, fails if less than 5 existing
                 employees
         """
-        return True
         profiles = linkedin.get_profiles(self.company, self.search_title, num_profiles)
+
         posting_vector = np.zeros(Profile.VECTOR_LEN, dtype=np.float32)
         num_added_profiles = 0
         for p in profiles:
@@ -45,12 +48,14 @@ class Posting(models.Model):
             if exp_start_date:
                 posting_vector = np.add(posting_vector, p.to_vector(exp_start_date))
                 num_added_profiles += 1
-        posting_vector = np.divide(posting_vector, num_added_profiles)
         
-        if num_added_profiles > 5:
+        self.num_employees = num_added_profiles
+        if num_added_profiles > 3:
+            posting_vector = np.divide(posting_vector, num_added_profiles)
             self.vector = posting_vector.dumps()
-            self.num_employees = num_added_profiles
             return True
+
+        logger.info("No profiles match.")
         return False
 
     def get_image_url(self):

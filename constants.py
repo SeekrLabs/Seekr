@@ -26,5 +26,5 @@ BASE_LINKEDIN_USER_URL = 'https://www.linkedin.com/in/'
 STOCK_IMAGE_URL = 'https://blog.herzing.ca/hubfs/becoming%20a%20programmer%20analyst%20lead-1.jpg'
 
 US_LOCATIONS = []
-CANADA_LOCATIONS = ['toronto', 'vancouver']
-TITLES = ['software engineer', 'hardware engineer', 'data scientist']
+CANADA_LOCATIONS = ['toronto']
+TITLES = ['software engineer']

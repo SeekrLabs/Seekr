@@ -34,20 +34,10 @@ class LinkedIn:
             .format(len(profiles), max(0, num_profiles - len(profiles))))
 
         total_num_profiles_collected = len(profiles)
+        self.scraper.get_profiles(company, title, 
+            (num_profiles - total_num_profiles_collected), exclude_usernames)
 
-        # Avoid infinite loop
-        iteration = 0
-        while total_num_profiles_collected < num_profiles and iteration < 3:
-            self.scraper.get_profiles(company, title, 
-                (num_profiles - total_num_profiles_collected), exclude_usernames)
-
-            profiles = set(Profile.objects.filter(experience__company__icontains=company, 
-                                                  experience__title__icontains=title))
-            exclude_usernames = [p.username for p in profiles]
-            total_num_profiles_collected = len(profiles)
-
-            iteration += 1
-            logger.info("Iteration {}, total profiles: {}, looking for {} more"
-                .format(iteration, len(profiles), num_profiles - len(profiles)))
-
+        profiles = Profile.objects.filter(experience__company__icontains=company, 
+                                              experience__title__icontains=title)
+        logger.info("Found a total of {} profiles".format(len(profiles)))
         return profiles

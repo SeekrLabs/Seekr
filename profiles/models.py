@@ -62,8 +62,10 @@ class Profile(models.Model):
             return self.education_set.all()[0].to_vector(profile_simulation_date)
 
     def get_experience_start_date(self, company, title):
-        for exp in self.experience_set:
-            if exp.company.lower() == company.lower() and exp.title == title.lower():
+        for exp in self.experience_set.all():
+            if exp.company and exp.title and \
+                    (exp.company.lower() in company.lower() or company.lower() in exp.company.lower()) \
+                    and (title.lower() in exp.title.lower()):
                 return exp.start_date
         return False
 

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+import time
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -139,6 +140,8 @@ STATIC_URL = '/static/'
 
 # os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = os.environ.get("SEEKR_ASYNC", default="false")
 
+LOG_NAME = 'data/server_{}.log'.format(int(time.time()))
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -149,7 +152,7 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': 'data/server.log',
+            'filename': LOG_NAME,
             'formatter': 'console'
         },
     },
@@ -161,7 +164,7 @@ LOGGING = {
     },
     'formatters': {
         'console': {
-            'format': '%(asctime)s %(levelname)10s %(message)s'
+            'format': '%(asctime)s %(funcName)25s() %(levelname)10s %(message)s'
         },
     }
 }
