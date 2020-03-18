@@ -133,8 +133,12 @@ class Education(models.Model):
         """
         school_vec = School(self.school_name).to_vector()
         gpa = [self.gpa] if self.gpa else [0]
-        years_to_complete_degree = [round((self.end_date - self.start_date).days / 365)]
-        years_since_graduation = [0] if self.is_current else [round((profile_simulation_date - self.end_date).days / 365)]
+        if self.start_date:
+            years_to_complete_degree = [round((self.end_date - self.start_date).days / 365)]
+            years_since_graduation = [0] if self.is_current else [round((profile_simulation_date - self.end_date).days / 365)]
+        else:
+            years_to_complete_degree = [0]
+            years_since_graduation = [0]
         field_of_study = glove.get_string_embedding(self.field_of_study, 3)
 
         return school_vec + gpa + years_to_complete_degree + years_since_graduation + field_of_study
