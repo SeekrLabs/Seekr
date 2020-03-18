@@ -3,7 +3,7 @@ from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from .models import MessengerUser
 from profiles.models import Profile
-from global_variables import linkedin_scraper
+from profiles.scraper import LinkedInScraper
 from .chatfuel import *
 from postings.models import Posting
 import json
@@ -76,12 +76,16 @@ def confirm_linkedin_profile(request):
         found_profile = False
 
         if Profile.username_validator(username):
+            # New scraper object everytime to avoid efforts in locking
+            linkedin_scraper = LinkedInScraper()
+            linkedin_scraper.login()
             p = linkedin_scraper.get_profile_by_url(profile_url)
+            linkedin_scraper.quit()
             if p:
                 m_user = MessengerUser.objects.get(pk=messenger_id)
                 m_user.profile = p
                 m_user.save()
-                
+
                 message1 = TextMessage("Great! We've found you.")
                 message2 = TextMessage(p.to_message())
                 message3 = TextMessage("Now that I have your profile,")

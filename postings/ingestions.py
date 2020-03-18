@@ -102,7 +102,10 @@ class IndeedIngestion:
                     
 
             logger.info("Length of about to be bulk created postings: {}".format(len(filtered_postings)))
-            Posting.objects.bulk_create(filtered_postings)
+            try:
+                Posting.objects.bulk_create(filtered_postings)
+            except:
+                logger.exception("Error")
 
             if page_num == 20:
                 posting_in_range = False
