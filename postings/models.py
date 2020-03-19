@@ -60,6 +60,57 @@ class Posting(models.Model):
             return True
         return False
 
+    #Takes in a company name and bucket location for upload
+    #and uploads the file to S3, and returns the s3 url
+    def load_logo(self, company):
+        """Loads a company logo based on company name
+        Queries bitbucket api to find a logo from partial company names, and saves the logo url to s3. 
+        Args:
+            company (string): The company name to find the logo for
+        Returns:
+            Returns the URL that a user can query to get the logo from S3. 
+        """
+        
+        
+        #Declare Bucket to save to
+        bucket = "tempBucketString"
+        
+        #Check if url is already in s3
+        imageFilename = company + ".png"
+        s3UrlAttempt = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + imageFilename
+        #Use url to check if already in s3
+        isPresent = True
+        
+        s3Resource = boto3.resource('s3')
+        try:
+            s3Resource.Object(bucket, imageFilename).load()
+        except botocore.exceptions.ClientError as error:
+            isPresent = False
+        
+        if isPresent:
+            return s3UrlAttempt
+        
+        #Get company autocomplete and values
+        url = "https://autocomplete.clearbit.com/v1/companies/suggest?query=" + company
+        searchResult = urllib.request.urlopen(url)
+        data = searchResult.read()
+        encodedData = searchResult.info().get_content_charset('utf-8')
+        resultingData = json.loads(data.decode(encodedData))
+        
+        #Create byte buffer representing logo image
+        #In the new form of upload, you need to do Image.open(byteBuffer) to access the image itself
+        item = resultingData[0]
+        clearbitURL = item["logo"]
+        logoResponse = requests.get(clearbitURL)
+        byteBuffer = BytesIO(logoResponse.content)
+        
+        #Upload to S3
+        s3.upload_fileobj(byteBuffer, bucket, imageFilename)
+        
+        s3Url = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + imageFilename
+        
+        return s3Url
+
     def get_image_url(self):
         if self.image_url is None:
             image = self.generate_image()
@@ -71,6 +122,8 @@ class Posting(models.Model):
         # response = requests.get(self.image_url)
 
         # using a filler url for now since waiting on Russell's code 
+        load_logo()
+
         response = requests.get("https://logo.clearbit.com/spotify.com")
         img = Image.open(BytesIO(response.content))
         
@@ -127,6 +180,10 @@ class Posting(models.Model):
 
         tempname = self.id + '.png'
         background.save(tempname)
+        save_image(self, background)
+
+        # do a chck to see if has been pushed by searching s3 
+        # delete local after saving
         #pass
 
     def save_image(self, image):
@@ -140,7 +197,9 @@ class Posting(models.Model):
             image_url (string): a publically access url string
         """
         s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
-
+        # create link for background image 
+        # push link into bucket 
+        # return true or something to confirm pushed 
 
         pass
 
