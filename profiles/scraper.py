@@ -15,7 +15,7 @@ from .models import Profile, Experience, Education
 import re
 from utils.utils import random_sleep
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 POLL_FREQUENCY = 0.1
 WAIT_TIMEOUT = 15
@@ -25,10 +25,12 @@ LINKEDIN_PASSWORD = os.environ['LINKEDIN_PASSWORD']
 
 class SeleniumScraper:
     xpaths = {}
-    def __init__(self, headless=False):
+    def __init__(self, headless=True):
         if headless:
             options = webdriver.ChromeOptions()
-            options.add_argument('headless')
+            options.add_argument('--headless')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
             driver = webdriver.Chrome(chrome_options=options)
         else:
             driver = webdriver.Chrome()
@@ -37,7 +39,10 @@ class SeleniumScraper:
 
     def visit(self, url):
         logger.info("Visiting {}".format(url))
-        self.d.get(url)
+        try:
+            self.d.get(url)
+        except:
+            logger.error("Driver get error.")
 
     def quit(self):
         self.d.quit()
@@ -60,9 +65,28 @@ class SeleniumScraper:
         except (TimeoutException, StaleElementReferenceException,
                 WebDriverException, NoSuchElementException) as e:
             if logs:
-                return None
-                #logger.warning(f"XPATH: {xpath_key} ")
-                #logger.warning(f"Error: {e} ")
+                logger.warning(f"XPATH: {xpath_key} ")
+            return None
+
+    def element_get_multiple_by_xpath_or_none(self, el, xpath_key, logs=True):
+        """
+        Get a web element through the xpath string passed.
+        If a TimeoutException is raised the else_case is called and None
+        is returned.
+        :param driver: Selenium Webdriver to use.
+        :param xpath: String containing the xpath.
+        :param wait_timeout: optional amounts of seconds before
+        TimeoutException is raised, default WAIT_TIMEOUT is used otherwise.
+        :param logs: optional, prints a status message to stdout if an
+        exception occures.
+        :return: The web element or None if nothing found.
+        """
+        try:
+            return el.find_elements_by_xpath(self.xpaths[xpath_key])
+        except (TimeoutException, StaleElementReferenceException,
+                WebDriverException, NoSuchElementException) as e:
+            if logs:
+                logger.warning(f"XPATH: {xpath_key} ")
             return None
 
     def scroll_to_bottom(self, body_height):
@@ -77,6 +101,13 @@ class SeleniumScraper:
         element = self.element_get_by_xpath_or_none(el, xpath_key, logs)
         if not element:
             return None
+        else:
+            return element.text
+
+    def element_get_text_by_xpath_or_empty_string(self, el, xpath_key, logs=True):
+        element = self.element_get_by_xpath_or_none(el, xpath_key, logs)
+        if not element:
+            return ""
         else:
             return element.text
 
@@ -116,9 +147,7 @@ class SeleniumScraper:
 
         except (TimeoutException, StaleElementReferenceException, WebDriverException, NoSuchElementException) as e:
             if logs:
-                return None
-                #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                #logger.warning(f"Error: {e} ")
+                logger.warning(f"Couldn't find XPATH: {xpath_key} ")
             return None
 
     def get_by_xpath_text_or_none(self, xpath_key, wait=False, logs=True):
@@ -143,9 +172,7 @@ class SeleniumScraper:
                 self.wait_get_by_xpath(xpath_key)
             except (TimeoutException, StaleElementReferenceException, WebDriverException) as e:
                 if logs:
-                    return None
-                    #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Couldn't find XPATH: {xpath_key} ")
                 return None
 
         try:
@@ -153,13 +180,9 @@ class SeleniumScraper:
         except:
             if logs:
                 if wait:
-                    return None
-                    #logger.warning(f"Found XPATH: {xpath_key}, couldn't find all elements.")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Found XPATH: {xpath_key}, couldn't find all elements.")
                 else:
-                    return None
-                    #logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                    #logger.warning(f"Error: {e} ")
+                    logger.warning(f"Couldn't find XPATH: {xpath_key} ")
             return None
 
     def get_multiple_by_xpath_text_or_none(self, xpath_key, wait=False, logs=True):
@@ -183,12 +206,14 @@ class LinkedInScraper(SeleniumScraper):
         'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
         'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
         'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
+        'MULTI_ROLES_LI': './/li[@class="pv-entity__position-group-role-item"]',
+        'MULTI_ROLES_LI_FADING': './/li[@class="pv-entity__position-group-role-item-fading-timeline"]',
         'TITLE': './/h3[@class="t-16 t-black t-bold"]',
         'COMPANY': './/p[@class="pv-entity__secondary-title t-14 t-black t-normal"]',
-        'COMPANY_SEQUENTIAL': './/h3[@class="t-16 t-black t-bold"]',
+        'COMPANY_MULTI_EXPERIENCES': './/h3[@class="t-16 t-black t-bold"]',
+        'TITLE_MULTI_EXPERIENCES': './/h3[@class="t-14 t-black t-bold"]',
         'DATE_RANGE': './/h4[@class="pv-entity__date-range t-14 t-black--light t-normal"]',
         'JOB_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-black t-normal inline-show-more-text inline-show-more-text--is-collapsed ember-view"]',
-        'EDUCATION_MULTIPLE': '//*[@class="pv-profile-section__sortable-card-item pv-education-entity pv-profile-section__card-item ember-view"]',
         'EDUCATION_SINGLE': '//li[@class="pv-profile-section__list-item pv-education-entity pv-profile-section__card-item ember-view"]',
         'SCHOOL': './/h3[@class="pv-entity__school-name t-16 t-black t-bold"]',
         'DEGREE': './/p[@class="pv-entity__secondary-title pv-entity__degree-name t-14 t-black t-normal"]',
@@ -197,7 +222,8 @@ class LinkedInScraper(SeleniumScraper):
         'SCHOOL_DATE_RANGE': './/p[@class="pv-entity__dates t-14 t-black--light t-normal"]',
         'EDUCATION_DESCRIPTION': './/p[@class="pv-entity__description t-14 t-normal mt4"]',
         'SHOW_MORE': './/button[@class="pv-profile-section__card-action-bar pv-skills-section__additional-skills artdeco-container-card-action-bar artdeco-button artdeco-button--tertiary artdeco-button--3 artdeco-button--fluid"]',
-        'FETCH_PROFILE_FROM_SEARCH': '//a[contains(@class, "search-result__result-link ember-view")]'
+        'FETCH_PROFILE_FROM_SEARCH': '//a[contains(@class, "search-result__result-link ember-view")]',
+        'PIN_VERIFY': '//*[@id="input__email_verification_pin"]',
     }
 
     def login(self):
@@ -212,27 +238,42 @@ class LinkedInScraper(SeleniumScraper):
         if password:
             password.send_keys(LINKEDIN_PASSWORD + '\n')
         logger.info("Found input boxes, waiting for authentication...")
-        
 
+    def pin_verify(self, pin):
+        pin_box = self.get_by_xpath_or_none('PIN_VERIFY', wait=True)
+        pin_box.send_keys(pin + '\n')
 
     def get_profile_urls(self, company, role, page_num, exclude_usernames=[]):
-        logger.info("Looking for {} roles at {} on the {} page...".format(
-            role, company, page_num))
+        try:
+            logger.info("Looking for {} roles at {} on the {} page...".format(
+                role, company, page_num))
+            logger.info("Excluded usernames: {}".format(' '.join(exclude_usernames)))
 
-        query = '%20'.join(company.split()) + '%20' + '%20'.join(role.split())
-        url = self.urls['LINKEDIN_PEOPLE_SEARCH'].format(query, page_num)
+            query = '%20'.join(company.split()) + '%20' + '%20'.join(role.split())
+            url = self.urls['LINKEDIN_PEOPLE_SEARCH'].format(query, page_num)
 
-        self.visit(url)
-        random_sleep(1, 0.3)
-        self.scroll_to_bottom(800)
+            self.visit(url)
+            random_sleep(1, 0.3)
+            self.scroll_to_bottom(800)
 
-        new_profile_urls = [p.get_attribute('href')
-            for p in self.get_multiple_by_xpath_or_none('FETCH_PROFILE_FROM_SEARCH')]
-        
-        filtered_profile_urls = [p for p in new_profile_urls
-            if Profile.url_to_username(p) not in exclude_usernames]
+            new_profile_urls = [p.get_attribute('href')
+                for p in self.get_multiple_by_xpath_or_none('FETCH_PROFILE_FROM_SEARCH')]
+            new_profile_urls = list(set(new_profile_urls))
 
-        return list(set(filtered_profile_urls))
+            if not new_profile_urls:
+                logger.info("Can't find anymore profiles, stopping iteration.")
+                raise StopIteration()
+            
+            filtered_profile_urls = [p for p in new_profile_urls
+                if Profile.url_to_username(p) not in exclude_usernames]
+            logger.info("Found {} profiles on this page, filtered to {} profiles".format(
+                len(new_profile_urls), len(filtered_profile_urls)))
+            return filtered_profile_urls
+        except StopIteration as e:
+            raise e
+        except:
+            self.login()
+            logger.exception("Error inn getting urls")
 
 
     def get_profiles(self, company, role, num_profiles, exclude_usernames=[]): 
@@ -250,9 +291,13 @@ class LinkedInScraper(SeleniumScraper):
         profiles = []
 
         while num_collected < num_profiles and page_num < 10:
-            profile_urls = self.get_profile_urls(company, 
-                role, page_num, exclude_usernames)
-
+            # LinkedIn Search
+            try:
+                profile_urls = self.get_profile_urls(company, 
+                    role, page_num, exclude_usernames)
+            except:
+                break;
+            # profile_urls = GoogleSearch.get_linkedin_profiles(query, page_num, start_page=start_page)
             for profile_url in profile_urls:
                 profile = self.get_profile_by_url(profile_url, company, role)
                 if profile:
@@ -276,110 +321,115 @@ class LinkedInScraper(SeleniumScraper):
         If the profile doesn't have experience or education fields we need, then do not store into DB.
         :param profile_url: Person's profile URL that we will be extracting information from.
         :return: True if we have stored the profile into DB, False if we did not store.
-        """
+        """ 
         username = Profile.url_to_username(profile_url)
 
-        self.visit(profile_url)
-        self.scroll_to_bottom(1500)
-
-        name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
-        location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
-        
-        experiences = self.parse_profile_experiences(company, role)
-        if experiences is None:
-            logger.info("{} has no experience.".format(name))
-            return False
-
-        educations = self.parse_profile_education()
-        gpa = None
-
-        profile, created = Profile.objects.get_or_create(name=name, location=location, 
-            username=username)
-        
-        if not created:
+        p = Profile.objects.filter(pk=username).first()
+        if p:
             logger.info("A profile with username {} exists in the database.".format(
                 username))
-        
-        education_list = []
-        for education in educations:
-            if education['grade'] is not None:
-                gpa = LinkedInScraper.extract_gpa(education['grade'])
+            return p
+
+        self.visit(profile_url)
+        try:
+            self.scroll_to_bottom(1500)
+            name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
+            location = self.get_by_xpath_text_or_none('LOCATION', wait=False)
+            experiences = self.parse_profile_experiences(company, role)
+
+            if experiences is None:
+                logger.info("{} has no experience.".format(name))
+                return False
+
+            educations = self.parse_profile_education()
+            gpa = None
+
+            profile = Profile.objects.create(name=name, location=location, username=username)
+            logger.info("Successfully created {}'s profile".format(username))
             
-            is_education_current = False
-            if education["end_date"] >= datetime.today():
-                is_education_current = True
-
-            e = Education(
-                school_name=education['institution'],
-                degree=education['degree'],
-                field_of_study = education['field_of_study'],
-                description=education['description'],
-                gpa=gpa,
-                start_date=education["start_date"],
-                end_date=education["end_date"],
-                is_current=is_education_current,
-                profile=profile,
-            )
-            education_list.append(e)
-            logger.info("Found education  {}".format(e))
-
-        Education.objects.bulk_create(education_list)
-
-        experience_list = []
-        for experience in experiences:
-            is_experience_current = True
-            # NOTE: LinkedIn requires users to input experience date range
-            experience_date_range = experience["dates"]
-            experience_start_date = datetime.now().strftime("%Y-%m-%d")
-            experience_end_date = datetime.now().strftime("%Y-%m-%d")
-
-            experience_start_date_month = experience_date_range.split('\n')[1].split(' ')[0]
+            education_list = []
+            for education in educations:
+                if education['grade'] is not None:
+                    gpa = LinkedInScraper.extract_gpa(education['grade'])
                 
-            if str.isdigit(experience_start_date_month): # NOTE: if user decides to not put a month for start date
-                experience_start_date_year = experience_start_date_month
-                experience_start_date = datetime.strptime("Jan" + " 01 " + experience_start_date_year, '%b %d %Y')
-            else:
-                experience_start_date_year = experience_date_range.split('\n')[1].split(' ')[1]
-                experience_start_date = datetime.strptime(experience_start_date_month + " 01 " + experience_start_date_year, '%b %d %Y')
+                is_education_current = False
+                if education["end_date"] >= datetime.today():
+                    is_education_current = True
 
-            try: 
-                experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[2]
-            except IndexError: # NOTE: when user only put year for both start and end date
-                experience_end_date = datetime.strptime("Dec" + " 01 " + experience_start_date_year, '%b %d %Y')
-            else:
-                try:
-                    experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
-                except IndexError: # NOTE: this means that user either put present or just put a year for end date
+                e = Education(
+                    school_name=education['institution'],
+                    degree=education['degree'],
+                    field_of_study = education['field_of_study'],
+                    description=education['description'],
+                    gpa=gpa,
+                    start_date=education["start_date"],
+                    end_date=education["end_date"],
+                    is_current=is_education_current,
+                    profile=profile,
+                )
+                education_list.append(e)
+                logger.info("Found education  {}".format(e))
+
+            Education.objects.bulk_create(education_list)
+
+            experience_list = []
+            for experience in experiences:
+                is_experience_current = True
+                # NOTE: LinkedIn requires users to input experience date range
+                experience_date_range = experience["dates"]
+                experience_start_date = datetime.now().strftime("%Y-%m-%d")
+                experience_end_date = datetime.now().strftime("%Y-%m-%d")
+
+                experience_start_date_month = experience_date_range.split('\n')[1].split(' ')[0]
+                    
+                if str.isdigit(experience_start_date_month): # NOTE: if user decides to not put a month for start date
+                    experience_start_date_year = experience_start_date_month
+                    experience_start_date = datetime.strptime("Jan" + " 01 " + experience_start_date_year, '%b %d %Y')
+                else:
+                    experience_start_date_year = experience_date_range.split('\n')[1].split(' ')[1]
+                    experience_start_date = datetime.strptime(experience_start_date_month + " 01 " + experience_start_date_year, '%b %d %Y')
+
+                try: 
                     experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[2]
-                else: 
-                    experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
+                except IndexError: # NOTE: when user only put year for both start and end date
+                    experience_end_date = datetime.strptime("Dec" + " 01 " + experience_start_date_year, '%b %d %Y')
+                else:
+                    try:
+                        experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
+                    except IndexError: # NOTE: this means that user either put present or just put a year for end date
+                        experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[2]
+                    else: 
+                        experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
 
-                if experience_end_date_month != "Present":
-                    is_experience_current = False
-                    if str.isdigit(experience_end_date_month): # NOTE: if user decides to not put a month for end date
-                        experience_end_date_year = experience_end_date_month
-                        experience_end_date = datetime.strptime("Dec" + " 01 " + experience_end_date_year, '%b %d %Y')
+                    if experience_end_date_month != "Present":
+                        is_experience_current = False
+                        if str.isdigit(experience_end_date_month): # NOTE: if user decides to not put a month for end date
+                            experience_end_date_year = experience_end_date_month
+                            experience_end_date = datetime.strptime("Dec" + " 01 " + experience_end_date_year, '%b %d %Y')
 
-                    else:
-                        experience_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
-                        experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
-            
-            e = Experience(
-                company=experience["company"],
-                description=experience["description"],
-                title = experience["title"],
-                start_date=experience_start_date,
-                end_date=experience_end_date,
-                is_current=is_experience_current,
-                profile=profile,
-            )
-            experience_list.append(e)
-            logger.info("Found experience {}".format(e))
+                        else:
+                            experience_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
+                            experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
+                
+                e = Experience(
+                    company=experience["company"],
+                    description=experience["description"],
+                    title = experience["title"],
+                    start_date=experience_start_date,
+                    end_date=experience_end_date,
+                    is_current=is_experience_current,
+                    profile=profile,
+                )
+                experience_list.append(e)
+                logger.info("Found experience {}".format(e))
 
-            
-        Experience.objects.bulk_create(experience_list)
+                
+            Experience.objects.bulk_create(experience_list)
 
-        return profile
+            return profile
+        except:
+            self.login()
+            logger.exception("Problem getting profile.")
 
     def parse_profile_experiences(self, company, role):
         """
@@ -389,33 +439,36 @@ class LinkedInScraper(SeleniumScraper):
         """
         experiences = []
         exps = self.get_multiple_by_xpath_or_none('EXPERIENCES')
+
         if not exps:
             return None
 
-        experience_with_incorrect_company = 0
         for exp in exps:
-            temp = {}
-            temp['dates'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'DATE_RANGE') if self.element_get_text_by_xpath_or_none(exp, 'DATE_RANGE') is not None else ""
-            temp['title'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'TITLE') if self.element_get_text_by_xpath_or_none(exp, 'TITLE') is not None else ""
-            temp['company'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'COMPANY') if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
-            temp['description'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
-            #NOTE: Counting number of companies that are different than the company we're looking for
-            if temp['company'].lower() != company.lower():
-                experience_with_incorrect_company += 1
-            experiences.append(temp)
-
-        # Handling the case when the user doesn't have any experience in the desired company (when user did not update LinkedIn yet):
-        if len(experiences) == experience_with_incorrect_company:
-            return None
-
-        # NOTE: after all experiences have been scraped, check if there's an experience that match to the desired company and role:
-        # for experience in experiences:
-            # if experience['company'].lower() == company.lower() and role.lower() in experience['title'].lower(): 
-            #     return experiences
+            # Multiple roles in 1 company
+            mult_roles_li = self.element_get_multiple_by_xpath_or_none(exp, 'MULTI_ROLES_LI')
+            if not mult_roles_li:
+                mult_roles_li = self.element_get_multiple_by_xpath_or_none(exp, 'MULTI_ROLES_LI_FADING')
+                
+            if mult_roles_li:
+                company = self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY_MULTI_EXPERIENCES').split('\n')[1]
+                for role in mult_roles_li:
+                    temp = {
+                        'company': company,
+                        'title': self.element_get_text_by_xpath_or_empty_string(role,
+                            'TITLE_MULTI_EXPERIENCES').split('\n')[1],
+                        'dates': self.element_get_text_by_xpath_or_empty_string(role, 'DATE_RANGE'),
+                        'description': self.element_get_text_by_xpath_or_empty_string(exp, 'JOB_DESCRIPTION')
+                    }
+                    experiences.append(temp)
+            else:
+                temp = {}
+                temp['dates'] = self.element_get_text_by_xpath_or_empty_string(exp, 'DATE_RANGE')
+                temp['title'] = self.element_get_text_by_xpath_or_empty_string(exp, 'TITLE')
+                temp['company'] = self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY')
+                temp['description'] = self.element_get_text_by_xpath_or_empty_string(exp, 'JOB_DESCRIPTION')
+                
+                if temp['dates'] and temp['title'] and temp['company']:
+                    experiences.append(temp)
 
         return experiences
 
@@ -439,13 +492,7 @@ class LinkedInScraper(SeleniumScraper):
         :return: List of dictionaries containing information about each education. Return [] if above condition does not satisfy.
         """
         educations = []
-        get_educations = self.get_multiple_by_xpath_or_none("EDUCATION_MULTIPLE")
-        if not get_educations: # if there isn't multiple educations, but this person has 1 education
-            single_education_web_element = self.get_by_xpath_or_none("EDUCATION_SINGLE")
-            if not single_education_web_element:
-                return []
-            get_educations = []
-            get_educations.append(single_education_web_element)
+        get_educations = self.get_multiple_by_xpath_or_none("EDUCATION_SINGLE")
 
         iteration = 0
         for education in get_educations:
@@ -457,16 +504,16 @@ class LinkedInScraper(SeleniumScraper):
             degree = self.element_get_text_by_xpath_or_none(
                     education, "DEGREE").split('\n')[1] if self.element_get_text_by_xpath_or_none(education, "DEGREE") is not None else ""
             
-            degree = degree.lower()
+            # degree = degree.lower()
 
-            if "bachelor" in degree or "bcs" in degree or "BSC" in degree :
-                degree = "Bachelor"
-            elif "master" in degree:
-                degree = "Master"
-            elif "phd" in degree:
-                degree = "PhD"
-            else:
-                degree = "Other"
+            # if "bachelor" in degree or "bcs" in degree or "BSC" in degree :
+            #     degree = "Bachelor"
+            # elif "master" in degree:
+            #     degree = "Master"
+            # elif "phd" in degree:
+            #     degree = "PhD"
+            # else:
+            #     degree = "Othe
 
             temp["degree"] = degree
             temp["grade"] = self.element_get_text_by_xpath_or_none(

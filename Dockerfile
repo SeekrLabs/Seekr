@@ -26,13 +26,8 @@ RUN venv/bin/pip install gunicorn
 ENV SEEKR_DEBUG 0
 ENV SEEKR_DATABASE prod
 ENV SEEKR_ASYNC true
-ENV RDS_DB_NAME seekr
-ENV RDS_USERNAME admin
-ENV RDS_PASSWORD password
-ENV RDS_HOSTNAME seekr.cwdyk0rb5rfu.us-east-1.rds.amazonaws.com
-ENV RDS_PORT 3306
-ENV LINKEDIN_EMAIL 0
-ENV LINKEDIN_PASSWORD 0
+ENV LINKEDIN_EMAIL waltonwang98@gmail.com
+ENV GOOGLE_SE_ID 010165119647807024814:q2yquzvdkdo
 
 COPY . ./
 RUN chmod +x boot.sh

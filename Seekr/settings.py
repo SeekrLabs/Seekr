@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+import time
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -85,15 +86,14 @@ DATABASES_AVAILABLE = {
     },
     'dev': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'data/db.sqlite3'),
     }
 }
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-database = os.environ.get('SEEKR_DATABASE', 'dev')
 DATABASES = {
-    'default': DATABASES_AVAILABLE[database]
+    'default': DATABASES_AVAILABLE['dev'] # For cost reasons, change to MySQL if high traffic
 }
 
 
@@ -140,6 +140,8 @@ STATIC_URL = '/static/'
 
 # os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = os.environ.get("SEEKR_ASYNC", default="false")
 
+LOG_NAME = 'data/server_{}.log'.format(int(time.time()))
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -148,20 +150,21 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'console',
         },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': LOG_NAME,
+            'formatter': 'console'
+        },
     },
     'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
         'app': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'DEBUG',
         },
     },
     'formatters': {
         'console': {
-            'format': '%(asctime)s %(levelname)10s %(message)s'
+            'format': '%(asctime)s %(funcName)25s() %(levelname)10s %(message)s'
         },
     }
 }

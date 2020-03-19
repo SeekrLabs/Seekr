@@ -4,11 +4,14 @@ from profiles.models import Profile
 from postings.models import Posting
 from datetime import date, timedelta
 import numpy as np
+import logging
+
+logger = logging.getLogger('app')
 
 class MessengerUser(models.Model):
     id = models.CharField(max_length=32, primary_key=True)
     # user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True)
-    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, null=True)
+    profile = models.OneToOneField(Profile, on_delete=models.SET_NULL, null=True)
     first_name = models.CharField(max_length=32, blank=True)
     last_name = models.CharField(max_length=32, blank=True)
     desired_location = models.CharField(max_length=32, blank=True)
@@ -21,7 +24,7 @@ class MessengerUser(models.Model):
 
 
     def compute_similarity(self, posting):
-        """Fetches rows from a Bigtable.
+        """ Computes similarity score between job posting and profile
 
         Parameters:
             posting (Posting): a job posting
@@ -45,7 +48,7 @@ class MessengerUser(models.Model):
         # postings.sort(key=self.compute_similarity)
         
         # return postings[offset*10:offset*10+10]
-        return self.sort_postings(
+        return self.rank_postings(
             self.filter_postings(title, location)
         )[offset*10:offset*10+10]
 
@@ -74,5 +77,13 @@ class MessengerUser(models.Model):
 
         return base_queryset
 
-    def sort_postings(self, postings):
-        return postings.order_by('date_posted')
+    def rank_postings(self, postings):
+        has_vector = postings.exclude(num_employees=-1)
+        no_vector = postings.filter(num_employees=-1)
+
+        scores = sorted([(self.compute_similarity(p), p) for p in has_vector], reverse=True)
+        postings_with_vectors = [p[1] for p in scores]
+        logger.info("Ranked {} postings with vectors, {} without vectors".format(
+            len(postings_with_vectors), len(no_vector)))
+            
+        return postings_with_vectors + list(no_vector.order_by('date_posted'))

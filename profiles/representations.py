@@ -38,11 +38,10 @@ class ExperienceRepresentation:
         return res
 
     def add_experience(self, exp, profile_simulation_date):
-
         latest_year = profile_simulation_date.year - self.prev_years_lookup
         lower_date_bound = date(latest_year, 1, 1)
 
-        if exp.end_date >= lower_date_bound:
+        if exp.start_date < profile_simulation_date and exp.end_date >= lower_date_bound:
             exp_title_vector = glove.get_string_embedding(exp.title, NUM_EXPERIENCE_TITLE_WORDS)
             delta_years_at_start = exp.start_date.year - profile_simulation_date.year
             delta_years_at_end = exp.end_date.year - profile_simulation_date.year
@@ -71,7 +70,8 @@ class ExperienceRepresentation:
             self.set_experience(delta_years, [month_tenured] + exp_vector)
 
     def should_set_experience(self, delta_years, exp_score):
-        if self.exp_map[delta_years] == None or self.exp_map[delta_years][0] < exp_score:
+        if delta_years <= 0 and -delta_years < self.prev_years_lookup and \
+                (self.exp_map[delta_years] == None or self.exp_map[delta_years][0] < exp_score):
             return True
         return False
 

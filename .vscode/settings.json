@@ -1,6 +1,6 @@
 {
     "python.pythonPath": "venv/bin/python",
-    "python.linting.enabled": true,
+    "python.linting.enabled": false,
     "customizeUI.stylesheet": {
         ".editor-actions": "display: none !important;",
     }
