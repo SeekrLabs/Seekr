@@ -186,10 +186,11 @@ class Posting(models.Model):
         tempname = self.id + '.png'
         background.save(tempname)
         gen_image_url = save_image(self, background)
-        return gen_image_url
 
         # do a check to see if has been pushed by searching s3 
         # delete local after saving
+
+        return gen_image_url
         #pass
 
     def save_image(self, image):
