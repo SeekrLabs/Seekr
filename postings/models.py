@@ -76,7 +76,6 @@ class Posting(models.Model):
         Returns:
             Returns the URL that a user can query to get the logo from S3. 
         """
-        
 
         #Declare Bucket to save to
         bucket = "tempBucketString"
@@ -186,9 +185,10 @@ class Posting(models.Model):
 
         tempname = self.id + '.png'
         background.save(tempname)
-        save_image(self, background)
+        gen_image_url = save_image(self, background)
+        return gen_image_url
 
-        # do a chck to see if has been pushed by searching s3 
+        # do a check to see if has been pushed by searching s3 
         # delete local after saving
         #pass
 
@@ -202,12 +202,25 @@ class Posting(models.Model):
         Returns:
             image_url (string): a publically access url string
         """
-        s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
-        # create link for background image 
-        # push link into bucket 
-        # return true or something to confirm pushed 
+        
+        # will only save to s3 when an image has been generated 
 
-        pass
+        # Declare Bucket to save generated image cards to
+        bucket = "generatedImageJobCardBucket"
+        
+        # Create url is already in s3
+        generatedURL = self.id + ".png"
+        s3URL = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + generatedURL
+        
+        #Create byte buffer from image passed through the function
+        byteBuffer = BytesIO(image)
+        
+        #Upload to S3
+        s3.upload_fileobj(byteBuffer, bucket, generatedURL)
+        
+        s3Url = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + imageFilename
+        
+        return s3Url
 
     def __str__(self):
         return '{:39}{:24}{:24}{}\t{:70}'.format(self.title[:35], self.company[:20],
