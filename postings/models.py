@@ -1,7 +1,6 @@
 from django.db import models
 from datetime import date
 from PIL import Image, ImageDraw
-from global_variables import linkedin
 import numpy as np
 from profiles.models import Profile
 import logging
@@ -29,7 +28,7 @@ class Posting(models.Model):
 
     # logo = models.URLField(default='')
     
-    def generate_vector(self, num_profiles):
+    def generate_vector(self, num_profiles, linkedin):
         """Generates a averaged vector of the job postings existing employees
   
         Parameters: 
@@ -50,7 +49,7 @@ class Posting(models.Model):
                 num_added_profiles += 1
         
         self.num_employees = num_added_profiles
-        if num_added_profiles > 3:
+        if num_added_profiles >= 3:
             posting_vector = np.divide(posting_vector, num_added_profiles)
             self.vector = posting_vector.dumps()
             return True

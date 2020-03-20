@@ -26,18 +26,18 @@ class LinkedIn:
 
         # Checks DB first and then scrapes from linkedin
         logger.info("Looking for profiles that's worked at {} as {}".format(company, title))
-        profiles = set(Profile.objects.filter(experience__company__icontains=company, 
-                                              experience__title__icontains=title))
+        profiles = list(set(Profile.objects.filter(experience__company__icontains=company, 
+                                              experience__title__icontains=title)))
+        if not profiles:
+            exclude_usernames = [p.username for p in profiles]
+            logger.info("Found {} existing profiles in database, looking for {} more."
+                .format(len(profiles), max(0, num_profiles - len(profiles))))
 
-        exclude_usernames = [p.username for p in profiles]
-        logger.info("Found {} existing profiles in database, looking for {} more."
-            .format(len(profiles), max(0, num_profiles - len(profiles))))
+            total_num_profiles_collected = len(profiles)
+            self.scraper.get_profiles(company, title, 
+                (num_profiles - total_num_profiles_collected), exclude_usernames)
 
-        total_num_profiles_collected = len(profiles)
-        self.scraper.get_profiles(company, title, 
-            (num_profiles - total_num_profiles_collected), exclude_usernames)
-
-        profiles = Profile.objects.filter(experience__company__icontains=company, 
-                                              experience__title__icontains=title)
-        logger.info("Found a total of {} profiles".format(len(profiles)))
+            profiles = list(set(Profile.objects.filter(experience__company__icontains=company, 
+                                                experience__title__icontains=title)))
+            logger.info("Found a total of {} profiles".format(len(profiles)))
         return profiles

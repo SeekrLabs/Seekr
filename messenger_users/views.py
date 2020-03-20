@@ -11,6 +11,7 @@ from profiles.search import GoogleSearch
 from constants import *
 import logging
 from django.db import IntegrityError
+from global_variables import linkedin_scraper
 
 
 logger = logging.getLogger('app')
@@ -77,10 +78,12 @@ def confirm_linkedin_profile(request):
 
         if Profile.username_validator(username):
             # New scraper object everytime to avoid efforts in locking
-            linkedin_scraper = LinkedInScraper()
-            linkedin_scraper.login()
-            p = linkedin_scraper.get_profile_by_url(profile_url)
-            linkedin_scraper.quit()
+            
+            if Profile.objects.filter(pk=username).exists():
+                p = Profile.objects.get(pk=username)
+            else:
+                p = linkedin_scraper.get_profile_by_url(profile_url)
+
             if p:
                 m_user = MessengerUser.objects.get(pk=messenger_id)
                 m_user.profile = p

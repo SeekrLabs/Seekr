@@ -32,6 +32,6 @@ class Glove:
         
         return res
 
-glove = None
-if any(command in sys.argv for command in ['runserver', 'Seekr.wsgi:application', 'ingest', 'shell']):
-    glove = Glove(GLOVE_FILE)
+glove = Glove(GLOVE_FILE)
+# if any(command in sys.argv for command in ['runserver', 'Seekr.wsgi:application', 'ingest', 'shell', 'shell_plus']):
+#     glove = Glove(GLOVE_FILE)

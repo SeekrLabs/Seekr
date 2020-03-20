@@ -7,4 +7,4 @@ class School:
         self.school_name = school_name.lower()
     
     def to_vector(self):
-        return [school_vectors.get(self.school_name, SCHOOL_DEFAULT_SCORE)]
+        return [school_vectors.get(self.school_name, SCHOOL_DEFAULT_SCORE) / 100]
