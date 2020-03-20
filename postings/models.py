@@ -185,11 +185,29 @@ class Posting(models.Model):
 
         tempname = self.id + '.png'
         background.save(tempname)
+        
+        # call function to save to s3 
         gen_image_url = save_image(self, background)
 
         # do a check to see if has been pushed by searching s3 
-        # delete local after saving
+        bucket = "generatedImageJobCardBucket"
+        generatedURL = self.id + ".png"
+        s3URL = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + generatedURL
 
+        isPresent = True
+        
+        s3Resource = boto3.resource('s3')
+        try:
+            s3Resource.Object(bucket, imageFilename).load()
+        except botocore.exceptions.ClientError as error:
+            isPresent = False
+        
+        if isPresent:
+            # delete local after saving
+            os.remove(tempname)
+            return gen_image_url
+
+        gen_image_url = save_image(self, background)    
         return gen_image_url
         #pass
 
@@ -205,14 +223,14 @@ class Posting(models.Model):
         """
         
         # will only save to s3 when an image has been generated 
-
         # Declare Bucket to save generated image cards to
         bucket = "generatedImageJobCardBucket"
         
         # Create url is already in s3
         generatedURL = self.id + ".png"
         s3URL = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + generatedURL
-        
+        s3Resource = boto3.resource('s3')
+
         #Create byte buffer from image passed through the function
         byteBuffer = BytesIO(image)
         
