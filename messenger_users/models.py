@@ -78,10 +78,19 @@ class MessengerUser(models.Model):
         return base_queryset
 
     def rank_postings(self, postings):
-        has_vector = postings.exclude(num_employees=-1)
-        no_vector = postings.filter(num_employees=-1)
+        has_vector = postings.filter(num_employees__gte=3)
+        no_vector = postings.exclude(num_employees__gte=3)
 
-        scores = sorted([(self.compute_similarity(p), p) for p in has_vector], reverse=True)
+        failed_vector = []
+        scores = []
+        for p in has_vector:
+            try:
+                scores.append((self.compute_similarity(p), p))
+            except:
+                logger.exception("Couldn't compute similarity for {}".format(p))
+                failed_vector.append(p)
+        scores.sort(key=lambda s: s[0], reverse=True)
+
         postings_with_vectors = [p[1] for p in scores]
         logger.info("Ranked {} postings with vectors, {} without vectors".format(
             len(postings_with_vectors), len(no_vector)))

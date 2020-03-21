@@ -14,6 +14,7 @@ from datetime import date, datetime
 from .models import Profile, Experience, Education
 import re
 from utils.utils import random_sleep
+from .search import GoogleSearch
 
 logger = logging.getLogger('app')
 
@@ -302,6 +303,34 @@ class LinkedInScraper(SeleniumScraper):
             self.login()
             logger.exception("Error inn getting urls")
 
+    def get_profile_urls_google(self, company, role, page_num, exclude_usernames=[]):
+        try:
+            logger.info("Looking for {} roles at {} on the {} page...".format(
+                role, company, page_num))
+            logger.info("Excluded usernames: {}".format(' '.join(exclude_usernames)))
+            query = '%20'.join(company.split()) + '%20' + '%20'.join(role.split())
+
+            profiles = GoogleSearch.get_linkedin_profiles_simple(query, page_num)
+            
+            new_profile_urls = [p['profile_url'] for p in profiles]
+            new_profile_urls = list(set(new_profile_urls))
+
+            if not new_profile_urls:
+                logger.info("Can't find anymore profiles, stopping iteration.")
+                raise StopIteration()
+            
+            filtered_profile_urls = [p for p in new_profile_urls
+                if Profile.url_to_username(p) not in exclude_usernames]
+            logger.info("Found {} profiles on this page, filtered to {} profiles".format(
+                len(new_profile_urls), len(filtered_profile_urls)))
+            return filtered_profile_urls
+            
+        except StopIteration as e:
+            raise e
+        except:
+            self.login()
+            logger.exception("Error inn getting urls")
+
 
     def get_profiles(self, company, role, num_profiles, exclude_usernames=[]): 
         """
@@ -320,11 +349,12 @@ class LinkedInScraper(SeleniumScraper):
         while num_collected < num_profiles and page_num < 10:
             # LinkedIn Search
             try:
-                profile_urls = self.get_profile_urls(company, 
+                profile_urls = self.get_profile_urls_google(company, 
                     role, page_num, exclude_usernames)
+                
             except:
                 break;
-            # profile_urls = GoogleSearch.get_linkedin_profiles(query, page_num, start_page=start_page)
+            
             for profile_url in profile_urls:
                 profile = self.get_profile_by_url(profile_url, company, role)
                 if profile:

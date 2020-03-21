@@ -7,6 +7,8 @@ from .models import Posting
 import sys
 import logging
 from constants import CANADA_LOCATIONS, US_LOCATIONS, TITLES
+from profiles.scraper import LinkedInScraper
+from profiles.linkedin import LinkedIn
 
 logger = logging.getLogger('app')
 
@@ -42,6 +44,8 @@ class IndeedIngestion:
         self.titles = titles
 
     def ingest_jobs(self, num_prev_days):
+        linkedin_scraper = LinkedInScraper(headless=True)
+        self.linkedin = LinkedIn(linkedin_scraper)
         for ca_loc in self.ca_locations:
             for title in self.titles:
                 url = self.BASE_URL_CA + '&q=' + title + '&l=' + ca_loc
@@ -51,6 +55,7 @@ class IndeedIngestion:
             for title in self.titles:
                 url = self.BASE_URL_US + '&q=' + title + '&l=' + us_loc
                 self.ingest_jobs_from_url(url, num_prev_days, title, 'usa')
+        linkedin_scraper.quit()
 
     def ingest_jobs_from_url(self, start_url, num_prev_days, search_title, country):
         page_num = 0
@@ -97,21 +102,21 @@ class IndeedIngestion:
             for p in postings:
                 if p.id not in existing_postings_id:
                     logger.info("Generating posting vector...")
-                    if p.generate_vector(5):
-                        filtered_postings.append(p)
-                    
-
-            logger.info("Length of about to be bulk created postings: {}".format(len(filtered_postings)))
-            try:
-                Posting.objects.bulk_create(filtered_postings)
-            except:
-                logger.exception("Error")
+                    p.generate_vector(5, self.linkedin)
+                    try:
+                        logger.info("Saving posting {}".format(p.id))
+                        p.save()
+                    except:
+                        logger.exception("Error")
 
             if page_num == 20:
                 posting_in_range = False
                 
             if not posting_in_range:
                 logger.info("Stopping Ingestion.")
+
+            # Server can't handle load.
+            break
                 
 
 class IndeedJobAd:
