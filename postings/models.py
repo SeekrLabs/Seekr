@@ -198,7 +198,7 @@ class Posting(models.Model):
         
         s3Resource = boto3.resource('s3')
         try:
-            s3Resource.Object(bucket, imageFilename).load()
+            s3Resource.Object(bucket, generatedURL).load()
         except botocore.exceptions.ClientError as error:
             isPresent = False
         
