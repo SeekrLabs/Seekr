@@ -161,10 +161,14 @@ class Posting(models.Model):
         # draw text, Company Title 
         titlelines = textwrap.wrap(self.title, width = 20)
         start_height = top_margin
+        title_line_count = 1
         for titleline in titlelines:
             width, height = fnt_title.getsize(titleline)
             d.text((left_margin, start_height), titleline, font=fnt_title,fill=(64,64,64))
             start_height += 56
+            title_line_count += 1
+            if title_line_count > 2 
+                break
 
         # draw text, Position Title
         pos_height = top_margin + 128 + line_space
@@ -177,10 +181,14 @@ class Posting(models.Model):
         # draw description 
         lines = textwrap.wrap(self.description, width = 60)
         start_height = loc_height + 10 + line_space
+        desc_line_count = 1
         for line in lines:
             width, height = fnt_norm.getsize(line)
             d.text((left_margin, start_height), line, font=fnt_norm,fill=(64,64,64))
             start_height += spacing
+            desc_line_count += 1
+            if desc_line_count > 5 
+                break
 
         tempname = self.id + '.png'
         background.save(tempname)
