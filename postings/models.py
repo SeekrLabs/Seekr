@@ -125,10 +125,11 @@ class Posting(models.Model):
         # use URL of logo image and get it
         # response = requests.get(self.image_url)
 
-        # using a filler url for now since waiting on Russell's code 
-        load_logo()
+        # grab logo url using compnay name from s3 bucket
+        logo_url = load_logo(self, self.company)
 
-        response = requests.get("https://logo.clearbit.com/spotify.com")
+        # load the image using the s3 url 
+        response = requests.get(logo_url)
         img = Image.open(BytesIO(response.content))
         
         # creating local variable storing full location 
@@ -167,7 +168,7 @@ class Posting(models.Model):
             d.text((left_margin, start_height), titleline, font=fnt_title,fill=(64,64,64))
             start_height += 56
             title_line_count += 1
-            if title_line_count > 2 
+            if title_line_count > 2: 
                 break
 
         # draw text, Position Title
@@ -187,7 +188,7 @@ class Posting(models.Model):
             d.text((left_margin, start_height), line, font=fnt_norm,fill=(64,64,64))
             start_height += spacing
             desc_line_count += 1
-            if desc_line_count > 5 
+            if desc_line_count > 5:
                 break
 
         tempname = self.id + '.png'
@@ -228,7 +229,6 @@ class Posting(models.Model):
         Returns:
             image_url (string): a publically access url string
         """
-        
         # will only save to s3 when an image has been generated 
         # Declare Bucket to save generated image cards to
         bucket = "generatedImageJobCardBucket"
