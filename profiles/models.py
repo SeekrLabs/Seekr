@@ -15,11 +15,11 @@ class Profile(models.Model):
 
     def username_validator(username: str):
         for c in username:
-            if not c.isalnum():
-                print("Invalid username format")
+            if not c.isalnum() and c != '-':
+                logger.info("Invalid username format")
                 return False
         if len(username) < 3 or len(username) > 100:
-            print("Invalid username format")
+            logger.info("Invalid username format")
             return False
         return True
     
@@ -62,8 +62,10 @@ class Profile(models.Model):
             return self.education_set.all()[0].to_vector(profile_simulation_date)
 
     def get_experience_start_date(self, company, title):
-        for exp in self.experience_set:
-            if exp.company.lower() == company.lower() and exp.title == title.lower():
+        for exp in self.experience_set.all():
+            if exp.company and exp.title and \
+                    (exp.company.lower() in company.lower() or company.lower() in exp.company.lower()) \
+                    and (title.lower() in exp.title.lower()):
                 return exp.start_date
         return False
 
@@ -77,6 +79,15 @@ class Profile(models.Model):
             base += "\t" + str(exp) + "\n"
         return base
 
+    def to_message(self):
+        base = "{} ".format(self.name)
+        base += "Education: "
+        for edu in self.education_set.all():
+            base += edu.to_message() + " "
+        base += "Experience "
+        for exp in self.experience_set.all():
+            base += exp.to_message() + "  "
+        return base
 
 
 class Experience(models.Model):
@@ -89,7 +100,11 @@ class Experience(models.Model):
     is_current = models.BooleanField()
 
     def __str__(self):
-        return "< {:50}, {:50}, Start: {} >".format(
+        return "{:40}, {:40}, Start: {}".format(
+            self.company[:38], self.title[:38], self.start_date.strftime("%Y-%m-%d"))
+
+    def to_message(self):
+        return "{}\n{}\nStart: {}".format(
             self.company, self.title, self.start_date.strftime("%Y-%m-%d"))
 
 class Education(models.Model):
@@ -118,12 +133,20 @@ class Education(models.Model):
         """
         school_vec = School(self.school_name).to_vector()
         gpa = [self.gpa] if self.gpa else [0]
-        years_to_complete_degree = [round((self.end_date - self.start_date).days / 365)]
-        years_since_graduation = [0] if self.is_current else [round((profile_simulation_date - self.end_date).days / 365)]
+        if self.start_date:
+            years_to_complete_degree = [round((self.end_date - self.start_date).days / 365)]
+            years_since_graduation = [0] if self.is_current else [round((profile_simulation_date - self.end_date).days / 365)]
+        else:
+            years_to_complete_degree = [0]
+            years_since_graduation = [0]
         field_of_study = glove.get_string_embedding(self.field_of_study, 3)
 
         return school_vec + gpa + years_to_complete_degree + years_since_graduation + field_of_study
 
     def __str__(self):
-        return "< {:50}, {:50}, Start: {} >".format(
+        return "{:40}, {:40}, Start: {}".format(
+            self.school_name[:38], self.field_of_study[:38], self.start_date.strftime("%Y-%m-%d"))
+
+    def to_message(self):
+        return "{}\n{}\nStart: {} ".format(
             self.school_name, self.field_of_study, self.start_date.strftime("%Y-%m-%d"))

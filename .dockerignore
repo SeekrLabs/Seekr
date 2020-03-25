@@ -81,3 +81,4 @@ utils/glove.6B.50d.txt
 !.elasticbeanstalk/*.global.yml
 
 .git/*
+data/

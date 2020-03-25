@@ -4,11 +4,14 @@ from profiles.models import Profile
 from postings.models import Posting
 from datetime import date, timedelta
 import numpy as np
+import logging
+
+logger = logging.getLogger('app')
 
 class MessengerUser(models.Model):
     id = models.CharField(max_length=32, primary_key=True)
     # user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True)
-    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, null=True)
+    profile = models.OneToOneField(Profile, on_delete=models.SET_NULL, null=True)
     first_name = models.CharField(max_length=32, blank=True)
     last_name = models.CharField(max_length=32, blank=True)
     desired_location = models.CharField(max_length=32, blank=True)
@@ -21,7 +24,7 @@ class MessengerUser(models.Model):
 
 
     def compute_similarity(self, posting):
-        """Fetches rows from a Bigtable.
+        """ Computes similarity score between job posting and profile
 
         Parameters:
             posting (Posting): a job posting
@@ -45,7 +48,7 @@ class MessengerUser(models.Model):
         # postings.sort(key=self.compute_similarity)
         
         # return postings[offset*10:offset*10+10]
-        return self.sort_postings(
+        return self.rank_postings(
             self.filter_postings(title, location)
         )[offset*10:offset*10+10]
 
@@ -74,5 +77,22 @@ class MessengerUser(models.Model):
 
         return base_queryset
 
-    def sort_postings(self, postings):
-        return postings.order_by('date_posted')
+    def rank_postings(self, postings):
+        has_vector = postings.filter(num_employees__gte=3)
+        no_vector = postings.exclude(num_employees__gte=3)
+
+        failed_vector = []
+        scores = []
+        for p in has_vector:
+            try:
+                scores.append((self.compute_similarity(p), p))
+            except:
+                logger.exception("Couldn't compute similarity for {}".format(p))
+                failed_vector.append(p)
+        scores.sort(key=lambda s: s[0], reverse=True)
+
+        postings_with_vectors = [p[1] for p in scores]
+        logger.info("Ranked {} postings with vectors, {} without vectors".format(
+            len(postings_with_vectors), len(no_vector)))
+            
+        return postings_with_vectors + list(no_vector.order_by('date_posted'))

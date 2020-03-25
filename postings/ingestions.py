@@ -6,15 +6,16 @@ import datetime
 from .models import Posting
 import sys
 import logging
+from constants import CANADA_LOCATIONS, US_LOCATIONS, TITLES
+from profiles.scraper import LinkedInScraper
+from profiles.linkedin import LinkedIn
 
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 def repeat():
-    indeed = IndeedIngestion(ca_locations=['toronto', 'vancouver', 'montreal'],
-            us_locations=['new york', 'seattle', 'san francisco', 'chicago'],
-            titles = ['software', 'hardware', 'analyst'])
-    num_init_pages = int(sys.argv[-1])
-    indeed.ingest_jobs(num_init_pages)
+    indeed = IndeedIngestion(ca_locations=CANADA_LOCATIONS,
+        us_locations=US_LOCATIONS,
+        titles=TITLES)
     
     while True:
         seconds_til_midnight = time_until_end_of_day().seconds
@@ -34,8 +35,6 @@ def time_until_end_of_day(dt=None):
     return datetime.datetime.combine(tomorrow, datetime.time.min) - dt
 
 class IndeedIngestion:
-    # ca_locations = ['toronto']
-    # titles = ['engineer', ]
     BASE_URL_CA = 'https://www.indeed.ca/jobs?&sort=date&limit=50'
     BASE_URL_US = 'https://www.indeed.com/jobs?&sort=date&limit=50'
 
@@ -45,18 +44,20 @@ class IndeedIngestion:
         self.titles = titles
 
     def ingest_jobs(self, num_prev_days):
+        linkedin_scraper = LinkedInScraper(headless=True)
+        self.linkedin = LinkedIn(linkedin_scraper)
         for ca_loc in self.ca_locations:
             for title in self.titles:
                 url = self.BASE_URL_CA + '&q=' + title + '&l=' + ca_loc
-                self.ingest_jobs_from_url(url, num_prev_days, 'canada')
+                self.ingest_jobs_from_url(url, num_prev_days, title, 'canada')
 
         for us_loc in self.us_locations:
             for title in self.titles:
                 url = self.BASE_URL_US + '&q=' + title + '&l=' + us_loc
-                self.ingest_jobs_from_url(url, num_prev_days, 'usa')
+                self.ingest_jobs_from_url(url, num_prev_days, title, 'usa')
+        linkedin_scraper.quit()
 
-    def ingest_jobs_from_url(self, start_url, num_prev_days, country):
-        
+    def ingest_jobs_from_url(self, start_url, num_prev_days, search_title, country):
         page_num = 0
 
         backfill_date = date.today() - timedelta(days=num_prev_days)
@@ -82,12 +83,11 @@ class IndeedIngestion:
 
             postings = []
             for posting_soup in posting_soups:
-                posting = IndeedJobAd(posting_soup, country)
+                posting = IndeedJobAd(posting_soup, country, search_title)
                 if posting.valid:
                     posting.print()
                     posting_db = posting.to_model()
                     postings.append(posting_db)
-                    posting_in_range = (posting.date_posted >=  backfill_date)
             
             existing_postings = Posting.objects.filter(pk__in=[p.id for p in postings])
             num_existing_postings = len(existing_postings)
@@ -95,24 +95,28 @@ class IndeedIngestion:
 
             existing_postings_id = [p.id for p in existing_postings]
 
-            if num_existing_postings > 20:
+            if num_existing_postings > 40:
                 posting_in_range = False
             
             filtered_postings = []
             for p in postings:
                 if p.id not in existing_postings_id:
-                    if p.generate_vector(10):
-                        filtered_postings.append(p)
-                    
+                    logger.info("Generating posting vector...")
+                    p.generate_vector(5, self.linkedin)
+                    try:
+                        logger.info("Saving posting {}".format(p.id))
+                        p.save()
+                    except:
+                        logger.exception("Error")
 
-            logger.info("Length of about to be commited postings: {}".format(len(filtered_postings)))
-            Posting.objects.bulk_create(filtered_postings)
-
-            if page_num == 19:
+            if page_num == 20:
                 posting_in_range = False
                 
             if not posting_in_range:
                 logger.info("Stopping Ingestion.")
+
+            # Server can't handle load.
+            break
                 
 
 class IndeedJobAd:
@@ -137,15 +141,16 @@ class IndeedJobAd:
     }
 
     # Initalize with a BeautifulSoup Card element
-    def __init__(self, ad_soup, country):
+    def __init__(self, ad_soup, country, search_title):
         self.country = country
         self.valid = self.extract_card(ad_soup)
+        self.search_title = search_title
         if self.valid:
             self.id = (self.title+'-'+self.company+'-' \
                     +self.city+'-'+str(self.date_posted)
             ).lower().replace(' ', '_')
 
-    def log(self):
+    def print(self):
         if self.valid:
             location = self.city + ', ' + self.state + ' ' + self.country
             logger.info('{:39}{:24}{:24}{} {:70}'.format(self.title[:35], self.company[:20],
@@ -158,7 +163,8 @@ class IndeedJobAd:
             return Posting(id=self.id, title=self.title, company=self.company, 
                     city=self.city, state=self.state, country=self.country,
                     source=self.source, date_posted=self.date_posted,
-                    url=self.url, description=self.description)
+                    url=self.url, description=self.description, 
+                    search_title=self.search_title)
         else:
             return None
 
