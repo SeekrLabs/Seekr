@@ -198,43 +198,21 @@ class Posting(models.Model):
         background.save(tempname)
         
         # call function to save to s3 
-        gen_image_url = save_image(self, background)
-
-        # do a check to see if has been pushed by searching s3 
-        bucket = "generatedImageJobCardBucket"
-        generatedURL = self.id + ".png"
-        s3URL = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + generatedURL
-
-        isPresent = True
-        
-        s3Resource = boto3.resource('s3')
-        try:
-            s3Resource.Object(bucket, generatedURL).load()
-        except botocore.exceptions.ClientError as error:
-            isPresent = False
-        
-        if isPresent:
-            # delete local after saving
-            os.remove(tempname)
-            return gen_image_url
-
-        gen_image_url = save_image(self, background)    
+        gen_image_url = save_image(self, background, tempname)
         return gen_image_url
         #pass
 
-    def save_image(self, image):
+    def save_image(self, image, filename):
         """ 
         Save to Amazon S3
-  
         Parameters: 
             image (TBD):
-          
         Returns:
             image_url (string): a publically access url string
         """
         # will only save to s3 when an image has been generated 
         # Declare Bucket to save generated image cards to
-        bucket = "generatedImageJobCardBucket"
+        bucket = "seek-job-posting-image-card"
         
         # Create url is already in s3
         generatedURL = self.id + ".png"
@@ -243,7 +221,7 @@ class Posting(models.Model):
         byteBuffer = BytesIO(image)
         
         #Upload to S3
-        s3.upload_file(image, bucket, generatedURL)
+        s3.upload_file(tempname, bucket, generatedURL)
         
         s3Url = "https://" + bucket + ".s3.us-east-2.amazonaws.com/" + generatedURL
         
