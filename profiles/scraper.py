@@ -203,21 +203,26 @@ class LinkedInScraper(SeleniumScraper):
     }
 
     def login(self):
+        """
+        Function that login into personal LinkedIn account to start the scraping process
+        """
         self.visit(self.urls['LINKEDIN_LOGIN_URL'])
-        time.sleep(5)
+        time.sleep(2)
         self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
         self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
 
-    def check_invalid_profile(self, profile_url):
+    def check_profile_link(self, profile_url):
+        """
+        Helper function to check the validity of the given profile url
+        :param profile_url: Url link
+        :return: True if the Url is valid, else False
+        """
         self.visit(profile_url)
-        time.sleep(2)
+        time.sleep(0.5) # changed the interval to 0.5 second for faster polling
         if self.d.current_url != profile_url:
             return False
         return True
-
-    """
-    :param query: String that queries the people tab of linkedin
-    """
+    
     def search_profiles_in_company_role(self, company, role):
         """
         Helper function that simply visits the search site for list of profiles.
@@ -237,8 +242,6 @@ class LinkedInScraper(SeleniumScraper):
             password.send_keys(LINKEDIN_PASSWORD + '\n')
         logger.info("Found input boxes, waiting for authentication...")
         
-
-
     def get_profile_urls(self, company, role, page_num, exclude_usernames=[]):
         logger.info("Looking for {} roles at {} on the {} page...".format(
             role, company, page_num))
@@ -257,7 +260,6 @@ class LinkedInScraper(SeleniumScraper):
             if Profile.url_to_username(p) not in exclude_usernames]
 
         return list(set(filtered_profile_urls))
-
 
     def get_profiles(self, company, role, num_profiles, exclude_usernames=[]): 
         """
@@ -301,11 +303,12 @@ class LinkedInScraper(SeleniumScraper):
         :param profile_url: Person's profile URL that we will be extracting information from.
         :return: True if we have stored the profile into DB, False if we did not store.
         """
-        if self.check_invalid_profile(profile_url) == False:
+
+        # visiting check_profile_link, check twice
+        if self.check_profile_link(profile_url) == False and self.check_profile_link(profile_url) == False:
             return False
         username = Profile.url_to_username(profile_url)
 
-        self.visit(profile_url)
         self.scroll_to_bottom(1500)
 
         name = self.get_by_xpath_text_or_none('PROFILE_NAME', wait=True)
@@ -358,6 +361,7 @@ class LinkedInScraper(SeleniumScraper):
             experience_date_range = experience["dates"]
             experience_start_date = datetime.now().strftime("%Y-%m-%d")
             experience_end_date = datetime.now().strftime("%Y-%m-%d")
+            
 
             experience_start_date_month = experience_date_range.split('\n')[1].split(' ')[0]
                 
@@ -389,7 +393,9 @@ class LinkedInScraper(SeleniumScraper):
                     else:
                         experience_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
                         experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
-            
+                else:
+                    experience_end_date = datetime.now().strftime("%Y-%m-%d")
+
             e = Experience(
                 company=experience["company"],
                 description=experience["description"],
@@ -399,7 +405,6 @@ class LinkedInScraper(SeleniumScraper):
                 is_current=is_experience_current,
                 profile=profile,
             )
-            profile.save()
             experience_list.append(e)
             logger.info("Found experience {}".format(e))
 
@@ -427,34 +432,39 @@ class LinkedInScraper(SeleniumScraper):
             # we distinguish these experiences by checking if "Company Name" exists in the company name field
     
             company_name = self.element_get_text_by_xpath_or_none(exp, 'COMPANY_MULTI_EXPERIENCES')
-            if "Company Name" in company_name and not self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES'): # this means this section has multiple experiences in 1 company
+            if "Company Name" in company_name and self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES'): # this means this section has multiple experiences in 1 company
                 multi_exps = self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES')
                 # need to iterate thru the li elements of these experiences and add into temp (make sure temp['company'] is there for all experiences
                 for experience in multi_exps:
+                    temp = {}
                     temp['company'] = company_name.split('\n')[1]
                     title = self.element_get_text_by_xpath_or_none(
                         experience, 'TITLE_MULTI_EXPERIENCES') if self.element_get_text_by_xpath_or_none(experience, 'TITLE_MULTI_EXPERIENCES') is not None else ""
                     temp['title'] = title.split('\n')[1]
                     temp['dates'] = self.element_get_text_by_xpath_or_none(
                         experience, 'DATE_RANGE').split('\n')[1] if self.element_get_text_by_xpath_or_none(experience, 'DATE_RANGE') is not None else ""
+                    temp['description'] = self.element_get_text_by_xpath_or_none(
+                        exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
 
-                    if temp['company'].lower() != company.lower():
+                    if '\n' not in temp['dates']:
+                        temp['dates'] = 'Dates Employed\n' + temp['dates']
+                    if company.lower() not in temp['company'].lower():
                         experience_with_incorrect_company +=1
                     experiences.append(temp)
-
-            temp['dates'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'DATE_RANGE') if self.element_get_text_by_xpath_or_none(exp, 'DATE_RANGE') is not None else ""
-            temp['title'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'TITLE') if self.element_get_text_by_xpath_or_none(exp, 'TITLE') is not None else ""
-            temp['company'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'COMPANY') if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
-            temp['description'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
+            else: 
+                temp['dates'] = self.element_get_text_by_xpath_or_none(
+                        exp, 'DATE_RANGE') if self.element_get_text_by_xpath_or_none(exp, 'DATE_RANGE') is not None else ""
+                temp['title'] = self.element_get_text_by_xpath_or_none(
+                        exp, 'TITLE') if self.element_get_text_by_xpath_or_none(exp, 'TITLE') is not None else ""
+                temp['company'] = self.element_get_text_by_xpath_or_none(
+                        exp, 'COMPANY').split(' ')[0] if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
+                temp['description'] = self.element_get_text_by_xpath_or_none(
+                        exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
            
-            # NOTE: Counting number of companies that are different than the company we're looking for
-            if temp['company'].lower() != company.lower():
-                experience_with_incorrect_company += 1
-            experiences.append(temp)
+                # NOTE: Counting number of companies that are different than the company we're looking for
+                if company.lower() not in temp['company'].lower():
+                    experience_with_incorrect_company += 1
+                experiences.append(temp)
 
         # Handling the case when the user doesn't have any experience in the desired company (when user did not update LinkedIn yet):
         if len(experiences) == experience_with_incorrect_company:
