@@ -1,6 +1,6 @@
 from django.db import models
 from datetime import date
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import urllib.request
 import json
 import boto3
@@ -10,17 +10,10 @@ from constants import *
 from global_variables import s3
 import requests
 from io import BytesIO
-
 import numpy as np
 from profiles.models import Profile
-
 import requests
 import textwrap
-from io import BytesIO
-import urllib.request
-import json
-import boto3
-import os
 import logging
 
 logger = logging.getLogger('app')
@@ -128,8 +121,7 @@ class Posting(models.Model):
 
     def get_image_url(self):
         if self.image_url is None:
-            image = self.generate_image()
-            self.image_url = self.save_image(image)
+            self.image_url = self.generate_image()
         return self.image_url
 
     def generate_image(self):
@@ -246,16 +238,14 @@ class Posting(models.Model):
         
         # Create url is already in s3
         generatedURL = self.id + ".png"
-        s3URL = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + generatedURL
-        s3Resource = boto3.resource('s3')
 
         #Create byte buffer from image passed through the function
         byteBuffer = BytesIO(image)
         
         #Upload to S3
-        s3.upload_fileobj(byteBuffer, bucket, generatedURL)
+        s3.upload_file(image, bucket, generatedURL)
         
-        s3Url = "https://" + bucket + ".s3-us-east-1.amazonaws.com/" + imageFilename
+        s3Url = "https://" + bucket + ".s3.us-east-2.amazonaws.com/" + generatedURL
         
         return s3Url
 
@@ -263,16 +253,12 @@ class Posting(models.Model):
     #and uploads the file to S3, and returns the s3 url
     def load_logo(self, company):
         """Loads a company logo based on company name
-
         Queries bitbucket api to find a logo from partial company names, and saves the logo url to s3. 
-
         Args:
             company (string): The company name to find the logo for
-
         Returns:
             Returns the URL that a user can query to get the logo from S3. 
         """
-        
         
         #Declare Bucket to save to
         bucket = "seekr-company-logo-image"

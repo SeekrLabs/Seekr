@@ -173,13 +173,9 @@ class SeleniumScraper:
                 self.wait_get_by_xpath(xpath_key)
             except (TimeoutException, StaleElementReferenceException, WebDriverException) as e:
                 if logs:
-<<<<<<< HEAD
-                    logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-=======
                     return None
                     logger.warning(f"Couldn't find XPATH: {xpath_key} ")
                     logger.warning(f"Error: {e} ")
->>>>>>> 0a362f7f6bc7b43b8f419e2f6735a362b4ba413a
                 return None
 
         try:
