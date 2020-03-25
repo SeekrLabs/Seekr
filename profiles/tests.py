@@ -41,9 +41,9 @@ class ProfileTestCase(TestCase):
         linkedin.get_profile_by_url("https://www.linkedin.com/in/joyliu3", 'Microsoft', 'Software')
         #linkedin.quit()
 
-    def test_google_search(self):
-        res = GoogleSearch().get_linkedin_profiles_simple("google", "software engineer", 0)
-        assert(len(res) == 10)
+    # def test_google_search(self):
+    #     res = GoogleSearch().get_linkedin_profiles_simple("google", "software engineer", 0)
+    #     assert(len(res) == 10)
 
     # def test_profile_database(self):
     #     test_profile = Profile(name = "Joy Liu", location = "Toronto")
