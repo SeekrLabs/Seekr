@@ -1,4 +1,5 @@
 from django.conf import settings
+import os
 
 ## Profiles
 WORD_EMBEDDING_LEN = 50
