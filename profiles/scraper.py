@@ -14,7 +14,6 @@ from datetime import date, datetime
 from .models import Profile, Experience, Education
 import re
 from utils.utils import random_sleep
-from .search import GoogleSearch
 
 logger = logging.getLogger('app')
 
@@ -173,9 +172,7 @@ class SeleniumScraper:
                 self.wait_get_by_xpath(xpath_key)
             except (TimeoutException, StaleElementReferenceException, WebDriverException) as e:
                 if logs:
-                    return None
                     logger.warning(f"Couldn't find XPATH: {xpath_key} ")
-                    logger.warning(f"Error: {e} ")
                 return None
 
         try:
@@ -209,7 +206,8 @@ class LinkedInScraper(SeleniumScraper):
         'PROFILE_NAME': '//*[@class="inline t-24 t-black t-normal break-words"]',
         'LOCATION': '//li[@class="t-16 t-black t-normal inline-block"]',
         'EXPERIENCES': '//*[@class="pv-profile-section__card-item-v2 pv-profile-section pv-position-entity ember-view"]',
-        'MULTI_EXPERIENCES': '//li[@class="pv-entity__position-group-role-item"]',
+        'MULTI_ROLES_LI': './/li[@class="pv-entity__position-group-role-item"]',
+        'MULTI_ROLES_LI_FADING': './/li[@class="pv-entity__position-group-role-item-fading-timeline"]',
         'TITLE': './/h3[@class="t-16 t-black t-bold"]',
         'COMPANY': './/p[@class="pv-entity__secondary-title t-14 t-black t-normal"]',
         'COMPANY_MULTI_EXPERIENCES': './/h3[@class="t-16 t-black t-bold"]',
@@ -230,28 +228,6 @@ class LinkedInScraper(SeleniumScraper):
 
     def login(self):
         self.visit(self.urls['LINKEDIN_LOGIN_URL'])
-        time.sleep(5)
-        self.get_by_xpath('USERNAME').send_keys(LINKEDIN_EMAIL)
-        self.get_by_xpath('PASSWORD').send_keys(LINKEDIN_PASSWORD + '\n')
-
-    def check_invalid_profile(self, profile_url):
-        self.visit(profile_url)
-        time.sleep(2)
-        if self.d.current_url != profile_url:
-            return False
-        return True
-
-    """
-    :param query: String that queries the people tab of linkedin
-    """
-    def search_profiles_in_company_role(self, company, role):
-        """
-        Helper function that simply visits the search site for list of profiles.
-        :param company: Company name we're searching.
-        :param role: Role we're searching for.
-        """
-        url = self.urls['LINKEDIN_PEOPLE_SEARCH'] + company + '&'+'%2f'.join(role.split()) + "&page="+str(self.last_page_num)
-        self.visit(url)
 
         logger.info("Looking for Email and Password text boxes...")
         username = self.get_by_xpath_or_none('USERNAME', wait=True)
@@ -299,34 +275,6 @@ class LinkedInScraper(SeleniumScraper):
             self.login()
             logger.exception("Error inn getting urls")
 
-    def get_profile_urls_google(self, company, role, page_num, exclude_usernames=[]):
-        try:
-            logger.info("Looking for {} roles at {} on the {} page...".format(
-                role, company, page_num))
-            logger.info("Excluded usernames: {}".format(' '.join(exclude_usernames)))
-            query = '%20'.join(company.split()) + '%20' + '%20'.join(role.split())
-
-            profiles = GoogleSearch.get_linkedin_profiles_simple(query, page_num)
-            
-            new_profile_urls = [p['profile_url'] for p in profiles]
-            new_profile_urls = list(set(new_profile_urls))
-
-            if not new_profile_urls:
-                logger.info("Can't find anymore profiles, stopping iteration.")
-                raise StopIteration()
-            
-            filtered_profile_urls = [p for p in new_profile_urls
-                if Profile.url_to_username(p) not in exclude_usernames]
-            logger.info("Found {} profiles on this page, filtered to {} profiles".format(
-                len(new_profile_urls), len(filtered_profile_urls)))
-            return filtered_profile_urls
-            
-        except StopIteration as e:
-            raise e
-        except:
-            self.login()
-            logger.exception("Error inn getting urls")
-
 
     def get_profiles(self, company, role, num_profiles, exclude_usernames=[]): 
         """
@@ -345,12 +293,11 @@ class LinkedInScraper(SeleniumScraper):
         while num_collected < num_profiles and page_num < 10:
             # LinkedIn Search
             try:
-                profile_urls = self.get_profile_urls_google(company, 
+                profile_urls = self.get_profile_urls(company, 
                     role, page_num, exclude_usernames)
-                
             except:
                 break;
-            
+            # profile_urls = GoogleSearch.get_linkedin_profiles(query, page_num, start_page=start_page)
             for profile_url in profile_urls:
                 profile = self.get_profile_by_url(profile_url, company, role)
                 if profile:
@@ -374,9 +321,7 @@ class LinkedInScraper(SeleniumScraper):
         If the profile doesn't have experience or education fields we need, then do not store into DB.
         :param profile_url: Person's profile URL that we will be extracting information from.
         :return: True if we have stored the profile into DB, False if we did not store.
-        """
-        if self.check_invalid_profile(profile_url) == False:
-            return False
+        """ 
         username = Profile.url_to_username(profile_url)
 
         p = Profile.objects.filter(pk=username).first()
@@ -446,31 +391,37 @@ class LinkedInScraper(SeleniumScraper):
 
                 try: 
                     experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[2]
-                else: 
-                    experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
+                except IndexError: # NOTE: when user only put year for both start and end date
+                    experience_end_date = datetime.strptime("Dec" + " 01 " + experience_start_date_year, '%b %d %Y')
+                else:
+                    try:
+                        experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
+                    except IndexError: # NOTE: this means that user either put present or just put a year for end date
+                        experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[2]
+                    else: 
+                        experience_end_date_month = experience_date_range.split('\n')[1].split(' ')[3]
 
-                if experience_end_date_month != "Present":
-                    is_experience_current = False
-                    if str.isdigit(experience_end_date_month): # NOTE: if user decides to not put a month for end date
-                        experience_end_date_year = experience_end_date_month
-                        experience_end_date = datetime.strptime("Dec" + " 01 " + experience_end_date_year, '%b %d %Y')
+                    if experience_end_date_month != "Present":
+                        is_experience_current = False
+                        if str.isdigit(experience_end_date_month): # NOTE: if user decides to not put a month for end date
+                            experience_end_date_year = experience_end_date_month
+                            experience_end_date = datetime.strptime("Dec" + " 01 " + experience_end_date_year, '%b %d %Y')
 
-                    else:
-                        experience_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
-                        experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
-            
-            e = Experience(
-                company=experience["company"],
-                description=experience["description"],
-                title = experience["title"],
-                start_date=experience_start_date,
-                end_date=experience_end_date,
-                is_current=is_experience_current,
-                profile=profile,
-            )
-            profile.save()
-            experience_list.append(e)
-            logger.info("Found experience {}".format(e))
+                        else:
+                            experience_end_date_year = experience_date_range.split('\n')[1].split(' ')[4]
+                            experience_end_date = datetime.strptime(experience_end_date_month + " 01 " + experience_end_date_year, '%b %d %Y')
+                
+                e = Experience(
+                    company=experience["company"],
+                    description=experience["description"],
+                    title = experience["title"],
+                    start_date=experience_start_date,
+                    end_date=experience_end_date,
+                    is_current=is_experience_current,
+                    profile=profile,
+                )
+                experience_list.append(e)
+                logger.info("Found experience {}".format(e))
 
                 
             Experience.objects.bulk_create(experience_list)
@@ -487,49 +438,37 @@ class LinkedInScraper(SeleniumScraper):
         :return: List of dictionaries containing information about each experience. Return None if no experience.
         """
         experiences = []
-        exps = self.get_multiple_by_xpath_or_none('EXPERIENCES', wait=True)
+        exps = self.get_multiple_by_xpath_or_none('EXPERIENCES')
+
         if not exps:
             return None
 
         for exp in exps:
-            temp = {}
-            # checking if this experience is "multiple experience under 1 company"
-            # since for multiple experiences, the fields are slightly different than single experience
-            # we distinguish these experiences by checking if "Company Name" exists in the company name field
-    
-            company_name = self.element_get_text_by_xpath_or_none(exp, 'COMPANY_MULTI_EXPERIENCES')
-            if "Company Name" in company_name and not self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES'): # this means this section has multiple experiences in 1 company
-                multi_exps = self.get_multiple_by_xpath_or_none('MULTI_EXPERIENCES')
-                # need to iterate thru the li elements of these experiences and add into temp (make sure temp['company'] is there for all experiences
-                for experience in multi_exps:
-                    temp['company'] = company_name.split('\n')[1]
-                    title = self.element_get_text_by_xpath_or_none(
-                        experience, 'TITLE_MULTI_EXPERIENCES') if self.element_get_text_by_xpath_or_none(experience, 'TITLE_MULTI_EXPERIENCES') is not None else ""
-                    temp['title'] = title.split('\n')[1]
-                    temp['dates'] = self.element_get_text_by_xpath_or_none(
-                        experience, 'DATE_RANGE').split('\n')[1] if self.element_get_text_by_xpath_or_none(experience, 'DATE_RANGE') is not None else ""
-
-                    if temp['company'].lower() != company.lower():
-                        experience_with_incorrect_company +=1
+            # Multiple roles in 1 company
+            mult_roles_li = self.element_get_multiple_by_xpath_or_none(exp, 'MULTI_ROLES_LI')
+            if not mult_roles_li:
+                mult_roles_li = self.element_get_multiple_by_xpath_or_none(exp, 'MULTI_ROLES_LI_FADING')
+                
+            if mult_roles_li:
+                company = self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY_MULTI_EXPERIENCES').split('\n')[1]
+                for role in mult_roles_li:
+                    temp = {
+                        'company': company,
+                        'title': self.element_get_text_by_xpath_or_empty_string(role,
+                            'TITLE_MULTI_EXPERIENCES').split('\n')[1],
+                        'dates': self.element_get_text_by_xpath_or_empty_string(role, 'DATE_RANGE'),
+                        'description': self.element_get_text_by_xpath_or_empty_string(exp, 'JOB_DESCRIPTION')
+                    }
                     experiences.append(temp)
-
-            temp['dates'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'DATE_RANGE') if self.element_get_text_by_xpath_or_none(exp, 'DATE_RANGE') is not None else ""
-            temp['title'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'TITLE') if self.element_get_text_by_xpath_or_none(exp, 'TITLE') is not None else ""
-            temp['company'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'COMPANY') if self.element_get_text_by_xpath_or_none(exp, 'COMPANY') is not None else ""
-            temp['description'] = self.element_get_text_by_xpath_or_none(
-                    exp, 'JOB_DESCRIPTION') if self.element_get_text_by_xpath_or_none(exp, 'JOB_DESCRIPTION') is not None else ""
-           
-            # NOTE: Counting number of companies that are different than the company we're looking for
-            if temp['company'].lower() != company.lower():
-                experience_with_incorrect_company += 1
-            experiences.append(temp)
-
-        # Handling the case when the user doesn't have any experience in the desired company (when user did not update LinkedIn yet):
-        if len(experiences) == experience_with_incorrect_company:
-            return None
+            else:
+                temp = {}
+                temp['dates'] = self.element_get_text_by_xpath_or_empty_string(exp, 'DATE_RANGE')
+                temp['title'] = self.element_get_text_by_xpath_or_empty_string(exp, 'TITLE')
+                temp['company'] = self.element_get_text_by_xpath_or_empty_string(exp, 'COMPANY')
+                temp['description'] = self.element_get_text_by_xpath_or_empty_string(exp, 'JOB_DESCRIPTION')
+                
+                if temp['dates'] and temp['title'] and temp['company']:
+                    experiences.append(temp)
 
         return experiences
 
