@@ -1,5 +1,6 @@
 from django.db import models
 from datetime import date
+
 from PIL import Image, ImageDraw, ImageFont
 import urllib.request
 import json
@@ -10,6 +11,7 @@ from constants import *
 from global_variables import s3
 import requests
 from io import BytesIO
+
 import numpy as np
 from profiles.models import Profile
 import requests
