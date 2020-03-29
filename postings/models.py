@@ -70,7 +70,7 @@ class Posting(models.Model):
         return False
 
     def get_image_url(self):
-        if self.image_url is None:
+        if self.image_url == "":
             self.image_url = self.generate_image()
         return self.image_url
 
@@ -78,31 +78,33 @@ class Posting(models.Model):
         # use URL of logo image and get it
         # response = requests.get(self.image_url)
 
-        # grab logo url using compnay name from s3 bucket
-        logo_url = self.load_logo()
-
-        # load the image using the s3 url 
-        response = requests.get(logo_url)
-        logger.debug("Issued GET request for %s with response code %d", logo_url, response.status_code)
-        img = Image.open(BytesIO(response.content))
-        
         # creating local variable storing full location 
         location = self.city + ", " + self.state
 
         # importing company logo and placing it on new Image 
-        img_w, img_h = img.size
         background = Image.new('RGBA', (909, 476), (255, 255, 255, 255))
         bg_w, bg_h = background.size
-        offset = (751, 30)
-        background.paste(img, offset)
+
+        # grab logo url using compnay name from s3 bucket
+        logo_url = self.load_logo()
+        if logo_url:
+            # load the image using the s3 url
+            try:
+                response = requests.get(logo_url)
+                logger.debug("Issued GET request for %s with response code %d", logo_url, response.status_code)
+                img = Image.open(BytesIO(response.content))
+                offset = (751, 30)
+                background.paste(img, offset)
+            except:
+                logger.info("Could not get the logo for posting %s", self.id)
 
         # creating default font types 
         ftitle = 60
         fsub = 40
         fnorm = 28
-        fnt_title = ImageFont.truetype('/Library/Fonts/Arial.ttf', ftitle)
-        fnt_sub = ImageFont.truetype('/Library/Fonts/Arial.ttf', fsub)
-        fnt_norm = ImageFont.truetype('/Library/Fonts/Arial.ttf', fnorm)
+        fnt_title = ImageFont.truetype('data/fonts/Arial.ttf', ftitle)
+        fnt_sub = ImageFont.truetype('data/fonts/Arial.ttf', fsub)
+        fnt_norm = ImageFont.truetype('data/fonts/Arial.ttf', fnorm)
 
         # creating default margin sizes 
         left_margin, right_margin, top_margin, bottom_margin = 30,30,30,30
@@ -194,7 +196,9 @@ class Posting(models.Model):
         #Use url to check if already in s3
         is_present = True
         
-        s3_resource = boto3.resource('s3')
+        s3_resource = boto3.resource('s3',
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key= AWS_SECRET_KEY)
         try:
             s3_resource.Object(bucket, image_filename).load()
             logger.debug("Image was already saved to s3 %s", s3_url_attempt)
@@ -202,9 +206,9 @@ class Posting(models.Model):
         except botocore.exceptions.ClientError as error:
             pass
 
-        logger.debug("Performing clearbit API request to get image")
+        logger.debug("Performing clearbit API request to get image %s", self.id)
         #Get company autocomplete and values
-        url = "https://autocomplete.clearbit.com/v1/companies/suggest?query=" + self.company.lower()
+        url = "https://autocomplete.clearbit.com/v1/companies/suggest?query=" + self.company.lower().split()[0]
         search_result = urllib.request.urlopen(url)
         data = search_result.read()
         encoded_data = search_result.info().get_content_charset('utf-8')
@@ -212,6 +216,9 @@ class Posting(models.Model):
         
         #Create byte buffer representing logo image
         #In the new form of upload, you need to do Image.open(byteBuffer) to access the image itself
+        if not resulting_data:
+            return None
+
         item = resulting_data[0]
         clearbit_url = item["logo"]
         logo_response = requests.get(clearbit_url)

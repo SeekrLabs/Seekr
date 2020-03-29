@@ -5,6 +5,9 @@ from .representations import ExperienceRepresentation, SkillRepresentation
 from utils.glove import glove
 from constants import *
 from .schools import School
+import logging
+
+logger = logging.getLogger('app')
 
 class Profile(models.Model):
     VECTOR_LEN = SKILLS_LEN + EDUCATION_VECTOR_LEN + EXPERIENCE_VECTOR_LEN
@@ -15,7 +18,7 @@ class Profile(models.Model):
 
     def username_validator(username: str):
         for c in username:
-            if not c.isalnum() and c != '-':
+            if not (c.isalnum() or c == '-'):
                 logger.info("Invalid username format")
                 return False
         if len(username) < 3 or len(username) > 100:

@@ -90,7 +90,6 @@ def confirm_linkedin_profile(request):
                 m_user.save()
 
                 message1 = TextMessage("Great! We've found you.")
-                message2 = TextMessage(p.to_message())
                 message3 = TextMessage("Now that I have your profile,")
 
                 response.add_message(message1)
@@ -241,10 +240,7 @@ def browse_saved_postings(request):
             
         else:
             for posting in postings:
-                if posting.image_url == '':
-                    image_url = STOCK_IMAGE_URL
-                else:
-                    image_url = posting.image_url
+                image_url = posting.get_image_url()
                     
                 posting_url = get_posting_url(messenger_id, posting.pk)
                 apply_button = UrlButton("Apply Now!", posting_url)
@@ -347,10 +343,7 @@ def search_jobs(request):
     else:
         gallery_message = GalleryMessage("horizontal")
         for posting in postings:
-            if posting.image_url == '':
-                image_url = STOCK_IMAGE_URL
-            else:
-                image_url = posting.image_url
+            image_url = posting.get_image_url()
 
             posting_url = get_posting_url(messenger_id, posting.pk)
             apply_button = UrlButton("Apply Now!", posting_url)

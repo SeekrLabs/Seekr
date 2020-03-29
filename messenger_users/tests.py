@@ -6,13 +6,14 @@ from .views import *
 from django.http import HttpRequest
 import json
 from pprint import pprint
-
+import logging
+logging.disable(logging.CRITICAL)
 class MessengerUserTestCase(TestCase):
     def setUp(self):
         self.client = Client()
 
     def add_objects(self):
-        posting = Posting(pk='test', title='test', url='https://google.com')
+        posting = Posting(pk='test', title='test', url='https://google.com', company="google")
         posting.save()
         user = MessengerUser(pk='test')
         user.save()
@@ -20,14 +21,14 @@ class MessengerUserTestCase(TestCase):
     def test_view_posting_dne_user(self):
         response = self.client.get(reverse('view_posting') + 
             '?posting_id=test&messenger_id=test')
-        assert(response.status_code == 404)
+        assert(response.status_code == 200)
 
     def test_view_posting_dne_posting(self):
         user = MessengerUser(pk='test')
         user.save()
         response = self.client.get(reverse('view_posting') + 
             '?posting_id=test&messenger_id=test')
-        assert(response.status_code == 404)
+        assert(response.status_code == 200)
 
     def test_view_posting(self):
         self.add_objects()
@@ -41,6 +42,7 @@ class MessengerUserTestCase(TestCase):
     def test_save_posting(self):
         self.add_objects()
         postings = Posting.objects.filter(messengeruser__id='test')
+        postings = MessengerUser.objects.get(pk='test').saved_postings.all()
         assert(len(postings) == 0)
 
         response = self.client.post(
@@ -50,7 +52,7 @@ class MessengerUserTestCase(TestCase):
         )
         
         assert(json.loads(response.content)['status'] == 'success')
-        postings = Posting.objects.filter(messengeruser__id='test')
+        postings = MessengerUser.objects.get(pk='test').saved_postings.all()
         assert(len(postings) == 1)
     
     def test_delete_saved_posting(self):
@@ -64,12 +66,29 @@ class MessengerUserTestCase(TestCase):
         assert(len(postings) == 0)
     
     def test_browse_saved_posting(self):
-        self.test_save_posting()
+        self.add_objects()
         response = self.client.post(
             '/messenger_users/browse_saved_postings',
             content_type='application/json',
             data={'messenger_id': 'test', 'saved_posting_page': '0'}
         )
         data = json.loads(response.content)
-        print(json.dumps(data, indent=4))
+
+        # Null message
+        assert('elements' not in data['messages'][0]['attachment']['payload'])
+
+        response = self.client.post(
+            '/messenger_users/save_posting',
+            content_type='application/json',
+            data={'messenger_id': 'test', 'posting_id': 'test'}
+        )
+
+        response = self.client.post(
+            '/messenger_users/browse_saved_postings',
+            content_type='application/json',
+            data={'messenger_id': 'test', 'saved_posting_page': '0'}
+        )
+
+        data = json.loads(response.content)
+        # print(json.dumps(data, indent=4))
         assert(len(data['messages'][0]['attachment']['payload']['elements']) == 1)
